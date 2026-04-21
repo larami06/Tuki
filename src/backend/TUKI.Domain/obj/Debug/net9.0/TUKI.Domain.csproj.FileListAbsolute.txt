@@ -1,0 +1,12 @@
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Domain\bin\Debug\net9.0\TUKI.Domain.deps.json
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Domain\bin\Debug\net9.0\TUKI.Domain.dll
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Domain\bin\Debug\net9.0\TUKI.Domain.pdb
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Domain\obj\Debug\net9.0\TUKI.Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Domain\obj\Debug\net9.0\TUKI.Domain.AssemblyInfoInputs.cache
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Domain\obj\Debug\net9.0\TUKI.Domain.AssemblyInfo.cs
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Domain\obj\Debug\net9.0\TUKI.Domain.csproj.CoreCompileInputs.cache
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Domain\obj\Debug\net9.0\TUKI.Domain.sourcelink.json
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Domain\obj\Debug\net9.0\TUKI.Domain.dll
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Domain\obj\Debug\net9.0\refint\TUKI.Domain.dll
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Domain\obj\Debug\net9.0\TUKI.Domain.pdb
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Domain\obj\Debug\net9.0\ref\TUKI.Domain.dll

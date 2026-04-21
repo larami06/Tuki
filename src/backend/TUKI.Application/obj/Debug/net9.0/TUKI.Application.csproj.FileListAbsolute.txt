@@ -1,0 +1,16 @@
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Application\bin\Debug\net9.0\TUKI.Application.deps.json
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Application\bin\Debug\net9.0\TUKI.Application.dll
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Application\bin\Debug\net9.0\TUKI.Application.pdb
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Application\bin\Debug\net9.0\TUKI.Domain.dll
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Application\bin\Debug\net9.0\TUKI.Domain.pdb
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Application\obj\Debug\net9.0\TUKI.Application.csproj.AssemblyReference.cache
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Application\obj\Debug\net9.0\TUKI.Application.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Application\obj\Debug\net9.0\TUKI.Application.AssemblyInfoInputs.cache
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Application\obj\Debug\net9.0\TUKI.Application.AssemblyInfo.cs
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Application\obj\Debug\net9.0\TUKI.Application.csproj.CoreCompileInputs.cache
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Application\obj\Debug\net9.0\TUKI.Application.sourcelink.json
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Application\obj\Debug\net9.0\TUKI.App.4A90BC2C.Up2Date
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Application\obj\Debug\net9.0\TUKI.Application.dll
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Application\obj\Debug\net9.0\refint\TUKI.Application.dll
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Application\obj\Debug\net9.0\TUKI.Application.pdb
+C:\Users\ACER\Documents\Tuki\src\backend\TUKI.Application\obj\Debug\net9.0\ref\TUKI.Application.dll
