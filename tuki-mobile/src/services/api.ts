@@ -1,6 +1,7 @@
 const API_URL = 'http://192.168.18.40:5276';
 
 export const criarUsuario = async (usuario: any) => {
+    console.log("🚀 ENVIANDO PARA API:", usuario);
     const response = await fetch(`${API_URL}/Usuarios`, {
         method: "POST",
         headers: {

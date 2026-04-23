@@ -1,33 +1,29 @@
-import { View, Text, TouchableOpacity, StyleSheet, ImageBackground } from 'react-native';
+import { View, Text, TouchableOpacity, ImageBackground, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import bg from '../../assets/images/background.png';
+import ibg from '../../assets/images/initbg.jpg';
 
 export default function Home() {
   const router = useRouter();
-
   return (
     <ImageBackground
-      source={bg}
+      source={ibg}
       style={styles.background}
       resizeMode="cover"
-      blurRadius={5}
     >
-      <View style={styles.overlay}>
-        <View style={styles.card}>
-          <Text style={styles.title}>Bem-vindo 👋</Text>
-
+      <View style={styles.footer}>
+        <View style={styles.buttonRow}>
           <TouchableOpacity
-            style={styles.buttonMain}
+            style={[styles.button, styles.buttonLight]}
             onPress={() => router.push('/cadastro')}
           >
-            <Text style={styles.buttonMainText}>Cadastrar</Text>
+            <Text style={[styles.buttonText, styles.buttonTextDark]}>Cadastrar</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.buttonSecondary}
+            style={[styles.button, styles.buttonPurple]}
             onPress={() => router.push('/login')}
           >
-            <Text style={styles.buttonSecondaryText}>Entrar</Text>
+            <Text style={[styles.buttonText, styles.buttonTextLight]}>Entrar</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -38,59 +34,47 @@ export default function Home() {
 const styles = StyleSheet.create({
   background: {
     flex: 1,
+    width: '100%',
+    height: '100%',
   },
-
-  overlay: {
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 24,
+    paddingBottom: 48,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 16,
+    width: '100%',
+  },
+  button: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 999,
     alignItems: 'center',
-    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
-
-  card: {
-    backgroundColor: '#FFF',
-    width: '100%',
-    borderRadius: 40,
-    padding: 30,
-    alignItems: 'center',
-    elevation: 10,
+  buttonLight: {
+    backgroundColor: '#ffffff',
   },
-
-  title: {
-    fontSize: 26,
-    fontWeight: '800',
-    marginBottom: 30,
-    color: '#444',
+  buttonPurple: {
+    backgroundColor: '#7c3aed',
   },
-
-  buttonMain: {
-    backgroundColor: '#7C3AED',
-    width: '100%',
-    paddingVertical: 15,
-    borderRadius: 30,
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-
-  buttonMainText: {
-    color: '#FFF',
+  buttonText: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: 'bold',
   },
-
-  buttonSecondary: {
-    borderWidth: 2,
-    borderColor: '#7C3AED',
-    width: '100%',
-    paddingVertical: 15,
-    borderRadius: 30,
-    alignItems: 'center',
+  buttonTextDark: {
+    color: '#1f2937',
   },
-
-  buttonSecondaryText: {
-    color: '#7C3AED',
-    fontSize: 18,
-    fontWeight: '800',
+  buttonTextLight: {
+    color: '#ffffff',
   },
 });

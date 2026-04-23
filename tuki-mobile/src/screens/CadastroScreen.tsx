@@ -5,8 +5,9 @@ import {
 } from 'react-native';
 
 import { criarUsuario } from '../services/api';
-import bg from '../../assets/images/background.png';
 import { useRouter } from 'expo-router';
+
+const bg = require('../../assets/images/background.jpg');
 
 const AVATARES = [
     { id: 'lion', icon: '🦁' },
@@ -38,6 +39,26 @@ export default function CadastroScreen() {
         setErro('');
         setLoading(true);
 
+        const usuario = {
+            nick,
+            idade: Number(idade),
+            avatar,
+        };
+        console.log("📤 OBJETO FRONT:", usuario);
+
+        try {
+            const response = await criarUsuario(usuario);
+
+            console.log("📥 Resposta:", response);
+
+            Alert.alert('Sucesso', 'Usuário cadastrado!');
+        } catch (error) {
+            console.log("❌ Erro:", error);
+            setErro('Erro ao conectar com a API.');
+        } finally {
+            setLoading(false);
+        }
+
         if (!nick || !idade || !avatar) {
             setErro('Preencha todos os campos e escolha um avatar.');
             setLoading(false);
@@ -66,16 +87,16 @@ export default function CadastroScreen() {
     };
 
     return (
-        <Pressable style={{ flex: 1 }} onPress={Keyboard.dismiss}>
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={{ flex: 1 }}
-            >
-                <ImageBackground
-                    source={bg}
-                    style={styles.background}
-                    resizeMode="cover"
-                    blurRadius={5}
+        <ImageBackground
+            source={bg}
+            style={styles.background}
+            resizeMode="cover"
+
+        >
+            <Pressable style={{ flex: 1 }} onPress={Keyboard.dismiss}>
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={{ flex: 1 }}
                 >
                     <View style={styles.overlay} pointerEvents="box-none">
                         <View style={styles.card}>
@@ -153,13 +174,13 @@ export default function CadastroScreen() {
                             <Text style={styles.backButtonText}>← Voltar</Text>
                         </TouchableOpacity>
                     </View>
-                </ImageBackground>
-            </KeyboardAvoidingView>
-        </Pressable>
+                </KeyboardAvoidingView>
+            </Pressable>
+        </ImageBackground>
     );
 }
 const styles = StyleSheet.create({
-    background: { flex: 1, resizeMode: 'cover' },
+    background: { flex: 1, width: '100%', height: '100%' },
 
     overlay: {
         flex: 1,
