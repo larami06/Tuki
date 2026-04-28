@@ -1,9 +1,10 @@
 import { View, Text, TouchableOpacity, ImageBackground, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import ibg from '../../assets/images/initbg.jpg';
+import ibg from '../assets/images/initbg.jpg';
 
 export default function Home() {
   const router = useRouter();
+
   return (
     <ImageBackground
       source={ibg}
@@ -16,14 +17,18 @@ export default function Home() {
             style={[styles.button, styles.buttonLight]}
             onPress={() => router.push('/cadastro')}
           >
-            <Text style={[styles.buttonText, styles.buttonTextDark]}>Cadastrar</Text>
+            <Text style={[styles.buttonText, styles.buttonTextDark]}>
+              Cadastrar
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.button, styles.buttonPurple]}
             onPress={() => router.push('/login')}
           >
-            <Text style={[styles.buttonText, styles.buttonTextLight]}>Entrar</Text>
+            <Text style={[styles.buttonText, styles.buttonTextLight]}>
+              Entrar
+            </Text>
           </TouchableOpacity>
         </View>
       </View>

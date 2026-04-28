@@ -24,7 +24,7 @@ export default function CadastroScreen() {
     const [avatar, setAvatar] = useState<string | null>(null);
     const [erro, setErro] = useState('');
     const [loading, setLoading] = useState(false);
-
+    const [sucesso, setSucesso] = useState(false);
     const router = useRouter();
     const inputRef = useRef<TextInput>(null);
     const idadeRef = useRef<TextInput>(null);
@@ -51,10 +51,26 @@ export default function CadastroScreen() {
         }
 
         setLoading(true);
+
         try {
-            const usuarioCriado = await criarUsuario({ nick: nick.trim(), idade: idadeNum });
+            const usuarioCriado = await criarUsuario({
+                nick: nick.trim(),
+                idade: idadeNum
+            });
+
             await salvarUsuario({ ...usuarioCriado, avatar });
-            router.replace('/(tabs)');
+
+            // 👇 muda estado visual
+            setSucesso(true);
+
+            // 👇 espera um pouco antes de navegar
+            setTimeout(() => {
+                router.replace({
+                    pathname: '/home',
+                    params: { nome: nick.trim(), avatar }
+                });
+            }, 2300);
+
         } catch (error) {
             setErro('Erro ao conectar com o servidor. Verifique sua conexão.');
         } finally {
@@ -69,7 +85,11 @@ export default function CadastroScreen() {
             resizeMode="cover"
 
         >
-            <Pressable style={{ flex: 1 }} onPress={Keyboard.dismiss}>
+            <View
+                style={{ flex: 1 }}
+                onStartShouldSetResponder={() => true}
+                onResponderRelease={Keyboard.dismiss}
+            >
                 <KeyboardAvoidingView
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                     style={{ flex: 1 }}
@@ -106,8 +126,6 @@ export default function CadastroScreen() {
                                 keyboardType="numeric"
                                 style={styles.input}
                                 placeholderTextColor="#999"
-                                returnKeyType="done"
-                                onSubmitEditing={Keyboard.dismiss}
                             />
 
                             <Text style={styles.label}>Escolha um avatar</Text>
@@ -129,12 +147,20 @@ export default function CadastroScreen() {
                             {erro ? <Text style={styles.errorText}>{erro}</Text> : null}
 
                             <TouchableOpacity
-                                style={[styles.buttonMain, loading && { opacity: 0.6 }]}
+                                style={[
+                                    styles.buttonMain,
+                                    loading && { opacity: 0.6 },
+                                    sucesso && { backgroundColor: '#12bd7fff' } // verde sucesso
+                                ]}
                                 onPress={cadastrar}
-                                disabled={loading}
+                                disabled={loading || sucesso}
                             >
                                 <Text style={styles.buttonMainText}>
-                                    {loading ? 'Criando...' : 'Criar Perfil'}
+                                    {loading
+                                        ? 'Criando...'
+                                        : sucesso
+                                            ? 'Perfil criado! 🎉'
+                                            : 'Criar Perfil'}
                                 </Text>
                             </TouchableOpacity>
 
@@ -151,7 +177,7 @@ export default function CadastroScreen() {
                         </TouchableOpacity>
                     </View>
                 </KeyboardAvoidingView>
-            </Pressable>
+            </View>
         </ImageBackground>
     );
 }

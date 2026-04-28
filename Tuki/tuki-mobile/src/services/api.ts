@@ -1,7 +1,15 @@
-// localhost:5276  →  testando no navegador (npm run web) ou emulador iOS
-// 10.0.2.2:5276   →  emulador Android
-// 192.168.x.x:5276 →  dispositivo físico (use o IP da sua máquina na rede)
-const API_URL = 'http://localhost:5276';
+import Constants from 'expo-constants';
+
+// Pega o IP do computador que está rodando o Metro Bundler automaticamente
+const debuggerHost = Constants.expoConfig?.hostUri;
+const localhost = debuggerHost?.split(':')[0] || 'localhost';
+const API_URL = `http://${localhost}:5276`;
+
+console.log('--- CONFIGURAÇÃO DE API ---');
+console.log('Host detectado:', debuggerHost);
+console.log('IP final:', localhost);
+console.log('URL da API:', API_URL);
+console.log('---------------------------');
 
 export interface UsuarioCreateDto {
   nick: string;

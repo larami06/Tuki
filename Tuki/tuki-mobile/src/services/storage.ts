@@ -4,7 +4,7 @@ export const salvarUsuario = async (usuario: any) => {
     await AsyncStorage.setItem("usuario", JSON.stringify(usuario));
 };
 
-export const getUsuario = async () => {
+export const buscarUsuario = async () => {
     const data = await AsyncStorage.getItem("usuario");
     return data ? JSON.parse(data) : null;
 };
