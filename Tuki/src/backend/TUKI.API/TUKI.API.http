@@ -1,0 +1,19 @@
+@TUKI.API_HostAddress = http://localhost:5273
+
+### Listar todos os usuários
+GET {{TUKI.API_HostAddress}}/api/usuarios
+Accept: application/json
+
+### Criar um novo usuário
+POST {{TUKI.API_HostAddress}}/api/usuarios
+Content-Type: application/json
+
+{
+  "nick": "TukiExplorer",
+  "idade": 8,
+  "avatar": "robo_feliz.png"
+}
+
+### Obter um usuário por ID (Exemplo ID 1)
+GET {{TUKI.API_HostAddress}}/api/usuarios/1
+Accept: application/json
