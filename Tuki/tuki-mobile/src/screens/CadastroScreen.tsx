@@ -55,7 +55,9 @@ export default function CadastroScreen() {
         try {
             const usuarioCriado = await criarUsuario({
                 nick: nick.trim(),
-                idade: idadeNum
+                idade: idadeNum,
+                idResponsavel: 1,  //MOCKADO PRECISA MUDAR
+                avatar: avatar as string
             });
 
             await salvarUsuario({ ...usuarioCriado, avatar });

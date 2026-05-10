@@ -14,12 +14,16 @@ console.log('---------------------------');
 export interface UsuarioCreateDto {
   nick: string;
   idade: number;
+  idResponsavel: number;
+  avatar: string;
 }
 
 export interface UsuarioResponseDto {
   id: number;
   nick: string;
   idade: number;
+  avatar: string;
+  idResponsavel: number;
 }
 
 export const criarUsuario = async (usuario: UsuarioCreateDto): Promise<UsuarioResponseDto> => {

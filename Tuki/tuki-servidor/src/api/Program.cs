@@ -5,6 +5,7 @@ using TUKI.Application.Services;
 using TUKI.Domain.Interfaces;
 using TUKI.Infrastructure.Data;
 using TUKI.Infrastructure.Repositories;
+using TUKI.Domain.Entities;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,8 +21,17 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Configuração do PostgreSQL com senha do pass.env
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+if (File.Exists("pass.env"))
+{
+    var password = File.ReadAllText("pass.env").Trim();
+    connectionString = connectionString?.Replace("Password=", $"Password={password}");
+}
+
 builder.Services.AddDbContext<TukiDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(connectionString));
 
 // Repositories
 builder.Services.AddScoped<IResponsavelRepository, ResponsavelRepository>();
@@ -44,6 +54,39 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// SEED DATA - Criando dados iniciais para não dar erro de banco vazio
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<TukiDbContext>();
+    context.Database.EnsureCreated();
+
+    if (!context.Responsaveis.Any())
+    {
+        var responsavel = new Responsavel 
+        { 
+            IdResponsavel = 1, 
+            Email = "mock@tuki.com", 
+            SenhaHash = "mock_hash" // Senha obrigatória
+        };
+        context.Responsaveis.Add(responsavel);
+        
+        var usuario = new Usuario 
+        { 
+            IdUsuario = 1, 
+            Nick = "TukiPlayer", 
+            Idade = 8, 
+            IdResponsavel = 1,
+            Avatar = "avatar_1"
+        };
+        context.Usuarios.Add(usuario);
+
+        
+        context.Inventarios.Add(new Inventario { IdUsuario = 1, Moedas = 100, Estrelas = 5 });
+        
+        context.SaveChanges();
+    }
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -55,3 +98,4 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+

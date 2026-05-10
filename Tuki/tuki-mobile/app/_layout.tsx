@@ -14,10 +14,17 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
+      <Stack screenOptions={{ title: 'Tuki' }}>
+        <Stack.Screen name="index" options={{ title: 'Tuki - Principal', headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        <Stack.Screen name="login" options={{ title: 'Tuki - Entrar' }} />
+        <Stack.Screen name="cadastro" options={{ title: 'Tuki - Cadastro' }} />
+        <Stack.Screen name="trilha-alfabetizacao" options={{ title: 'Tuki - Alfabetização' }} />
+        <Stack.Screen name="trilha-matematica" options={{ title: 'Tuki - Matemática' }} />
+        <Stack.Screen name="trilha-historias" options={{ title: 'Tuki - Histórias' }} />
+        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Aviso' }} />
       </Stack>
+
       <StatusBar style="auto" />
     </ThemeProvider>
   );
