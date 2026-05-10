@@ -12,6 +12,9 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.IdUsuario));
         CreateMap<UsuarioCreateDto, Usuario>();
 
+        CreateMap<Responsavel, ResponsavelResponseDto>()
+            .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.IdResponsavel));
+
         CreateMap<Inventario, InventarioResponseDto>();
 
         CreateMap<Recompensa, RecompensaResponseDto>()

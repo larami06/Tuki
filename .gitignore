@@ -44,3 +44,6 @@ app-example
 
 .claude
 CLAUDE.md
+# Ignorando arquivos do Claude
+.claude/
+CLAUDE.md
