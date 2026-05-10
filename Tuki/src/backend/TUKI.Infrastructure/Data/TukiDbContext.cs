@@ -7,6 +7,7 @@ public class TukiDbContext : DbContext
 {
     public TukiDbContext(DbContextOptions<TukiDbContext> options) : base(options) { }
 
+    public DbSet<Responsavel> Responsaveis { get; set; } = null!;
     public DbSet<Usuario> Usuarios { get; set; } = null!;
     public DbSet<Inventario> Inventarios { get; set; } = null!;
     public DbSet<Recompensa> Recompensas { get; set; } = null!;
@@ -19,6 +20,16 @@ public class TukiDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.Entity<Responsavel>(e =>
+        {
+            e.ToTable("responsavel");
+            e.HasKey(r => r.IdResponsavel);
+            e.Property(r => r.IdResponsavel).HasColumnName("idresponsavel");
+            e.Property(r => r.Email).HasColumnName("email").HasMaxLength(255).IsRequired();
+            e.Property(r => r.SenhaHash).HasColumnName("senhahash").HasMaxLength(255).IsRequired();
+            e.HasIndex(r => r.Email).IsUnique();
+        });
+
         modelBuilder.Entity<Usuario>(e =>
         {
             e.ToTable("usuario");
@@ -26,7 +37,13 @@ public class TukiDbContext : DbContext
             e.Property(u => u.IdUsuario).HasColumnName("idusuario");
             e.Property(u => u.Nick).HasColumnName("nick").HasMaxLength(50).IsRequired();
             e.Property(u => u.Idade).HasColumnName("idade");
+            e.Property(u => u.Avatar).HasColumnName("avatar").HasMaxLength(20).IsRequired();
+            e.Property(u => u.IdResponsavel).HasColumnName("idresponsavel");
             e.HasIndex(u => u.Nick).IsUnique();
+            e.HasOne(u => u.Responsavel)
+             .WithMany(r => r.Usuarios)
+             .HasForeignKey(u => u.IdResponsavel)
+             .OnDelete(DeleteBehavior.Restrict);
             e.HasOne(u => u.Inventario)
              .WithOne(i => i.Usuario)
              .HasForeignKey<Inventario>(i => i.IdUsuario);
@@ -39,8 +56,10 @@ public class TukiDbContext : DbContext
             e.Property(i => i.IdInventario).HasColumnName("idinventario");
             e.Property(i => i.IdUsuario).HasColumnName("idusuario");
             e.Property(i => i.Moedas).HasColumnName("moedas");
-            e.Property(i => i.Medalhas).HasColumnName("medalhas");
             e.Property(i => i.Estrelas).HasColumnName("estrelas");
+            e.Property(i => i.LicoesConcluidas).HasColumnName("licoesconcluidas");
+            e.Property(i => i.StreakAtual).HasColumnName("streakatual");
+            e.Property(i => i.UltimaAtividade).HasColumnName("ultimaatividade");
         });
 
         modelBuilder.Entity<Recompensa>(e =>

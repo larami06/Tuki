@@ -24,6 +24,7 @@ builder.Services.AddDbContext<TukiDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Repositories
+builder.Services.AddScoped<IResponsavelRepository, ResponsavelRepository>();
 builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
 builder.Services.AddScoped<IInventarioRepository, InventarioRepository>();
 builder.Services.AddScoped<IRecompensaRepository, RecompensaRepository>();
@@ -31,6 +32,7 @@ builder.Services.AddScoped<ILicaoRepository, LicaoRepository>();
 builder.Services.AddScoped<IProgressoRepository, ProgressoRepository>();
 
 // Services
+builder.Services.AddScoped<IResponsavelService, ResponsavelService>();
 builder.Services.AddScoped<IUsuarioService, UsuarioService>();
 builder.Services.AddScoped<IInventarioService, InventarioService>();
 builder.Services.AddScoped<IRecompensaService, RecompensaService>();

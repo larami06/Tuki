@@ -27,7 +27,6 @@ public class InventarioService : IInventarioService
         var inventario = await _repository.GetByUsuarioIdAsync(idUsuario)
             ?? throw new KeyNotFoundException($"Inventário do usuário {idUsuario} não encontrado.");
         inventario.Moedas = dto.Moedas;
-        inventario.Medalhas = dto.Medalhas;
         inventario.Estrelas = dto.Estrelas;
         await _repository.UpdateAsync(inventario);
     }

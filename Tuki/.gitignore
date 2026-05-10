@@ -72,3 +72,6 @@ Desktop.ini
 [Aa]ntigravity/
 .claude
 claude.md
+# Ignorando arquivos do Claude
+.claude/
+CLAUDE.md
