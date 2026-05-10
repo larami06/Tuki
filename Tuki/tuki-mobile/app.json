@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "tuki-mobile",
+    "name": "Tuki",
     "slug": "tuki-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -23,7 +23,7 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/tucano.favicon.png"
     },
     "plugins": [
       "expo-router",

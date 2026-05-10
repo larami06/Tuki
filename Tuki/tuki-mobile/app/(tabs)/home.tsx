@@ -1,18 +1,37 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { BookOpen, Star, Sparkles, Trophy, Flame, Coins, LogOut } from 'lucide-react-native';
+import { BookOpen, Star, Sparkles, Trophy, Flame, Coins, LogOut, Target, Home as HomeIcon, Book, ShoppingBag, User } from 'lucide-react-native';
+
+interface Usuario {
+  id: number;
+  nick: string;
+  idade: number;
+}
 
 export default function Home() {
   const router = useRouter();
   const { nome } = useLocalSearchParams();
+  const [usuario, setUsuario] = useState<Usuario | null>(null);
+
+  useEffect(() => {
+    // Busca os usuários cadastrados na API e pega o mais recente (último da lista)
+    fetch('http://localhost:5276/api/Usuarios')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.length > 0) {
+          setUsuario(data[data.length - 1]);
+        }
+      })
+      .catch(err => console.error("Erro ao buscar usuário:", err));
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Cabeçalho Superior */}
       <View style={styles.headerContainer}>
         <View style={styles.topRow}>
-          <Text style={styles.greeting}>Olá, {nome || 'Joaozinho'}! 👋</Text>
+          <Text style={styles.greeting}>Olá, {nome || usuario?.nick || 'Visitante'}! 👋</Text>
 
           <TouchableOpacity
             style={styles.logoutButton}
@@ -58,11 +77,22 @@ export default function Home() {
 
       {/* Barra de Navegação Inferior */}
       <View style={styles.navBar}>
-        {['Início', 'Atividades', 'Loja', 'Perfil'].map((item) => (
-          <TouchableOpacity key={item} style={styles.navItem}>
-            <Text style={styles.navLabel}>{item}</Text>
-          </TouchableOpacity>
-        ))}
+        <TouchableOpacity style={styles.navItem}>
+          <HomeIcon size={24} color="#7c3aed" />
+          <Text style={[styles.navLabel, { color: '#7c3aed', fontWeight: 'bold' }]}>Início</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navItem}>
+          <Book size={24} color="#6b7280" />
+          <Text style={styles.navLabel}>Atividades</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navItem}>
+          <ShoppingBag size={24} color="#6b7280" />
+          <Text style={styles.navLabel}>Loja</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/perfil')}>
+          <User size={24} color="#6b7280" />
+          <Text style={styles.navLabel}>Perfil</Text>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
