@@ -9,4 +9,5 @@ public interface IUsuarioRepository
     Task AddAsync(Usuario usuario);
     Task UpdateAsync(Usuario usuario);
     Task DeleteAsync(int id);
+    Task<IEnumerable<Usuario>> GetByResponsavelIdAsync(int responsavelId);
 }

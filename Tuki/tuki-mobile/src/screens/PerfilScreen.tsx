@@ -1,39 +1,62 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
-import { BookOpen, Star, Flame, TrendingUp, Trophy, Target, Home, Book, ShoppingBag, User } from 'lucide-react-native';
+import { API_URL } from '../services/api';
+import { obterPerfilAtivo } from '../services/storage';
+import { BookOpen, Star, Flame, TrendingUp, Trophy, Target, Home, Book, LogOut, ShoppingBag, User } from 'lucide-react-native';
 
 interface Usuario {
   id: number;
   nick: string;
   idade: number;
+  avatar: string;
+  moedas: number;
+  estrelas: number;
+  licoesConcluidas: number;
+  streakAtual: number;
 }
+
+const AVATARES_MAP: Record<string, string> = {
+  avatar_1: '🐸',
+  avatar_2: '🐼',
+  avatar_3: '🦊',
+  avatar_4: '🦁',
+  avatar_5: '🐱',
+};
 
 export default function PerfilScreen() {
   const router = useRouter();
   const [usuario, setUsuario] = useState<Usuario | null>(null);
+  const sair = async () => {
+    router.replace('/selecionar-perfil');
+  };
 
   useEffect(() => {
-    // Busca os usuários cadastrados na API e pega o mais recente (último da lista)
-    fetch('http://localhost:5276/api/Usuarios')
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.length > 0) {
-          setUsuario(data[data.length - 1]);
-        }
-      })
-      .catch(err => console.error("Erro ao buscar usuário:", err));
+    const carregarPerfil = async () => {
+      const perfil = await obterPerfilAtivo();
+      if (perfil) {
+        setUsuario(perfil);
+      }
+    };
+    carregarPerfil();
   }, []);
 
   return (
     <SafeAreaView style={styles.container}>
+
       <StatusBar barStyle="light-content" backgroundColor="#7c3aed" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        
+
         {/* Cabeçalho Roxo */}
         <View style={styles.header}>
+
+          <TouchableOpacity style={styles.logoutButton} onPress={sair}>
+            <LogOut size={22} color="#fff" />
+          </TouchableOpacity>
           <View style={styles.avatarContainer}>
-            <Text style={styles.avatarEmoji}>🦁</Text>
+            <Text style={styles.avatarEmoji}>
+              {usuario?.avatar ? (AVATARES_MAP[usuario.avatar] || '👤') : '👤'}
+            </Text>
           </View>
           <Text style={styles.name}>{usuario?.nick || 'Visitante'}</Text>
           <Text style={styles.levelSubtitle}>
@@ -312,4 +335,22 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     marginTop: 4,
   },
+  logoutButton: {
+    position: 'absolute',
+    top: 55,
+    right: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+
+  logoutText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+  }
 });

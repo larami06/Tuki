@@ -38,4 +38,10 @@ public class UsuarioService : IUsuarioService
         await _inventarioRepository.AddAsync(new Inventario { IdUsuario = usuario.IdUsuario });
         return _mapper.Map<UsuarioResponseDto>(usuario);
     }
+
+    public async Task<IEnumerable<UsuarioResponseDto>> GetByResponsavelIdAsync(int responsavelId)
+    {
+        var usuarios = await _repository.GetByResponsavelIdAsync(responsavelId);
+        return _mapper.Map<IEnumerable<UsuarioResponseDto>>(usuarios);
+    }
 }

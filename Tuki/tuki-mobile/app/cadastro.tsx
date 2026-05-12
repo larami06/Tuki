@@ -1,5 +1,5 @@
-import CadastroScreen from '../src/screens/CadastroScreen';
+import CadastroResponsavelScreen from '../src/screens/CadastroResponsavelScreen';
 
 export default function Cadastro() {
-    return <CadastroScreen />;
+    return <CadastroResponsavelScreen />;
 }

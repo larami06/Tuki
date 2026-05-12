@@ -30,6 +30,13 @@ public class UsuariosController : ControllerBase
         return Ok(usuario);
     }
 
+    [HttpGet("responsavel/{responsavelId}")]
+    public async Task<ActionResult<IEnumerable<UsuarioResponseDto>>> GetByResponsavel(int responsavelId)
+    {
+        var result = await _usuarioService.GetByResponsavelIdAsync(responsavelId);
+        return Ok(result);
+    }
+
     [HttpPost]
     public async Task<ActionResult<UsuarioResponseDto>> CreateUsuario(UsuarioCreateDto createDto)
     {

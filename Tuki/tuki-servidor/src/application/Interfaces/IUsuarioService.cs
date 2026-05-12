@@ -7,4 +7,5 @@ public interface IUsuarioService
     Task<IEnumerable<UsuarioResponseDto>> GetAllAsync();
     Task<UsuarioResponseDto?> GetByIdAsync(int id);
     Task<UsuarioResponseDto> AddAsync(UsuarioCreateDto dto);
+    Task<IEnumerable<UsuarioResponseDto>> GetByResponsavelIdAsync(int responsavelId);
 }

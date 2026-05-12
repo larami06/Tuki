@@ -15,4 +15,8 @@ public class UsuarioResponseDto
     public int Idade { get; set; }
     public string Avatar { get; set; } = string.Empty;
     public int IdResponsavel { get; set; }
+    public int Moedas { get; set; }
+    public int Estrelas { get; set; }
+    public int LicoesConcluidas { get; set; }
+    public int StreakAtual { get; set; }
 }

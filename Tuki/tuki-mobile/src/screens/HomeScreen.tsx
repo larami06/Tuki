@@ -1,47 +1,48 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { BookOpen, Star, Sparkles, Trophy, Flame, Coins, LogOut, Target, Home as HomeIcon, Book, ShoppingBag, User } from 'lucide-react-native';
+import { BookOpen, Star, Sparkles, Trophy, Flame, Coins, Target, Home as HomeIcon, Book, ShoppingBag, User } from 'lucide-react-native';
+import { obterPerfilAtivo } from '../services/storage';
+import { useAuth } from '../../app/hooks/useAuth';
+import { API_URL } from '../services/api';
 
 interface Usuario {
   id: number;
   nick: string;
   idade: number;
+  avatar: string;
 }
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { nome } = useLocalSearchParams();
+  const { nome: paramNome } = useLocalSearchParams();
   const [usuario, setUsuario] = useState<Usuario | null>(null);
+  const { loading } = useAuth();
 
   useEffect(() => {
-    // Busca os usuários cadastrados na API e pega o mais recente (último da lista)
-    fetch('http://localhost:5276/api/Usuarios')
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.length > 0) {
-          setUsuario(data[data.length - 1]);
-        }
-      })
-      .catch(err => console.error("Erro ao buscar usuário:", err));
+    const carregarPerfil = async () => {
+      const perfil = await obterPerfilAtivo();
+      if (perfil) {
+        setUsuario(perfil);
+      } else {
+        router.replace('/selecionar-perfil');
+      }
+    };
+
+    carregarPerfil();
   }, []);
+
+  if (loading) {
+    return null;
+  }
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Cabeçalho Superior */}
       <View style={styles.headerContainer}>
         <View style={styles.topRow}>
-          <Text style={styles.greeting}>Olá, {nome || usuario?.nick || 'Visitante'}! 👋</Text>
-
-          <TouchableOpacity
-            style={styles.logoutButton}
-            onPress={() => router.replace('/')}
-          >
-            <LogOut size={20} color="#6b7280" />
-          </TouchableOpacity>
+          <Text style={styles.greeting}>Olá, {paramNome || usuario?.nick || 'Visitante'}! 👋</Text>
         </View>
 
-        {/* Linha de Status (Stats) */}
         <View style={styles.statsRow}>
           <Text style={styles.stat}><Star color="#f59e0b" size={16} /> 24</Text>
           <Text style={styles.stat}><Coins color="#d97706" size={16} /> 150</Text>
@@ -53,7 +54,6 @@ export default function HomeScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Banner Hora de Aprender */}
         <View style={styles.banner}>
           <Text style={styles.bannerTitle}>Hora de aprender! 🎉</Text>
           <Text style={styles.bannerSub}>Continue sua jornada de descobertas</Text>
@@ -62,7 +62,6 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Grid de Exploração */}
         <Text style={styles.sectionTitle}>Explore</Text>
         <View style={styles.grid}>
           {[
@@ -71,8 +70,8 @@ export default function HomeScreen() {
             { title: 'Histórias', icon: Sparkles, route: '/trilha-historias', color: '#ec4899' },
             { title: 'Conquistas', icon: Trophy, route: '/conquistas', color: '#10b981' }
           ].map((item, i) => (
-            <TouchableOpacity 
-              key={i} 
+            <TouchableOpacity
+              key={i}
               style={styles.card}
               onPress={() => item.route && router.push(item.route as any)}
             >
@@ -83,8 +82,6 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-
-      {/* Barra de Navegação Inferior */}
       <View style={styles.navBar}>
         <TouchableOpacity style={styles.navItem}>
           <HomeIcon size={24} color="#7c3aed" />
@@ -109,11 +106,13 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fdfbf7' },
-  headerStats: { padding: 20, paddingTop: 40 },
+  headerContainer: { padding: 20, paddingTop: 40 },
+  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   greeting: { fontSize: 20, fontWeight: 'bold' },
   statsRow: { flexDirection: 'row', gap: 15, marginTop: 10, alignItems: 'center' },
   stat: { flexDirection: 'row', alignItems: 'center', fontWeight: '600' },
-  xpBox: { backgroundColor: '#e5e7eb', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, fontWeight: 'bold' },
+  xpBox: { backgroundColor: '#e5e7eb', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  xpText: { fontSize: 12, fontWeight: 'bold', color: '#374151' },
   content: { padding: 20 },
   banner: { backgroundColor: '#7c3aed', padding: 20, borderRadius: 20, marginBottom: 20 },
   bannerTitle: { color: '#fff', fontSize: 22, fontWeight: 'bold' },
@@ -124,33 +123,7 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 15 },
   card: { width: '45%', backgroundColor: '#fff', padding: 20, borderRadius: 15, alignItems: 'center', elevation: 2 },
   cardText: { marginTop: 10, fontWeight: '600' },
-  navBar: { flexDirection: 'row', justifyContent: 'space-around', padding: 20, borderTopWidth: 1, borderColor: '#eee' },
+  navBar: { flexDirection: 'row', justifyContent: 'space-around', padding: 20, borderTopWidth: 1, borderColor: '#eee', backgroundColor: '#fff' },
   navItem: { alignItems: 'center' },
-  navLabel: { fontSize: 12, color: '#6b7280' },
-  headerContainer: {
-    padding: 20,
-    paddingTop: 40
-  },
-  greetingWrapper: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 5,
-  },
-  topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  logoutButton: {
-    padding: 8,
-    borderRadius: 12,
-    backgroundColor: '#f3f4f6',
-  },
-  xpText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#374151',
-  },
+  navLabel: { fontSize: 12, color: '#6b7280', marginTop: 4 },
 });

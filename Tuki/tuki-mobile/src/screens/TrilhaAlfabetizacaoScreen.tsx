@@ -6,7 +6,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const LEVELS = [
   { id: 1, title: 'Vogais Mágicas', status: 'completed', icon: 'format-letter-case', color: '#ff6b6b' },
-  { id: 2, title: 'Encontro de Sons', status: 'current', icon: 'mouth', color: '#4ecdc4' },
+  { id: 2, title: 'Encontro de Sons', status: 'current', icon: 'account-voice', color: '#4ecdc4' },
   { id: 3, title: 'Família do B e C', status: 'locked', icon: 'bee', color: '#45b7d1' },
   { id: 4, title: 'Palavras Curtas', status: 'locked', icon: 'pencil', color: '#96ceb4' },
   { id: 5, title: 'Frases Divertidas', status: 'locked', icon: 'balloon', color: '#ffeead' },

@@ -1,8 +1,8 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\TUKI.Application\TUKI.Application.csproj" />
-    <ProjectReference Include="..\TUKI.Domain\TUKI.Domain.csproj" />
+    <ProjectReference Include="..\application\TUKI.Application.csproj" />
+    <ProjectReference Include="..\domain\TUKI.Domain.csproj" />
   </ItemGroup>
 
   <ItemGroup>

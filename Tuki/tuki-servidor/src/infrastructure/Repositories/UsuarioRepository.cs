@@ -17,12 +17,14 @@ public class UsuarioRepository : IUsuarioRepository
     public async Task<Usuario?> GetByIdAsync(int id)
     {
         return await _context.Usuarios
+            .Include(u => u.Inventario)
             .FirstOrDefaultAsync(u => u.IdUsuario == id);
     }
 
     public async Task<IEnumerable<Usuario>> GetAllAsync()
     {
         return await _context.Usuarios
+            .Include(u => u.Inventario)
             .ToListAsync();
     }
 
@@ -46,5 +48,13 @@ public class UsuarioRepository : IUsuarioRepository
             _context.Usuarios.Remove(usuario);
             await _context.SaveChangesAsync();
         }
+    }
+
+    public async Task<IEnumerable<Usuario>> GetByResponsavelIdAsync(int responsavelId)
+    {
+        return await _context.Usuarios
+            .Include(u => u.Inventario)
+            .Where(u => u.IdResponsavel == responsavelId)
+            .ToListAsync();
     }
 }

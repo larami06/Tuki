@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity, ImageBackground, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { criarUsuario } from '../services/api';
+
 import ibg from '../../assets/images/initbg.jpg';
 
 export default function LandingScreen() {
@@ -13,26 +13,6 @@ export default function LandingScreen() {
       resizeMode="cover"
     >
       <View style={styles.footer}>
-        {/* BOTÃO DEV - PEQUENO PARA TESTES */}
-        <TouchableOpacity
-          style={styles.devButton}
-          onPress={async () => {
-            try {
-              await criarUsuario({
-                nick: "DevUser",
-                idade: 10,
-                idResponsavel: 1,
-                avatar: "avatar_1"
-              });
-              router.push('/home');
-            } catch (error) {
-              console.log("Erro no DevLogin (já deve existir ou erro de conexão):", error);
-              router.push('/home');
-            }
-          }}
-        >
-          <Text style={styles.devButtonText}>Dev Login (Mock)</Text>
-        </TouchableOpacity>
 
         <View style={styles.buttonRow}>
           <TouchableOpacity
@@ -104,16 +84,5 @@ const styles = StyleSheet.create({
   buttonTextLight: {
     color: '#ffffff',
   },
-  devButton: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: 8,
-    borderRadius: 8,
-    alignSelf: 'center',
-    marginBottom: 20,
-  },
-  devButtonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
+
 });

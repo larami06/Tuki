@@ -29,4 +29,13 @@ public class ResponsaveisController : ControllerBase
         var result = await _service.AddAsync(dto);
         return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
     }
+    [HttpPost("login")]
+    public async Task<ActionResult<ResponsavelResponseDto>> Login(LoginDto dto)
+    {
+        var result = await _service.LoginAsync(dto);
+        if (result == null)
+            return Unauthorized(new { message = "Email ou senha inválidos." });
+        
+        return Ok(result);
+    }
 }

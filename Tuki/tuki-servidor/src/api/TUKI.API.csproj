@@ -9,6 +9,7 @@
   <ItemGroup>
     <PackageReference Include="AutoMapper" Version="12.0.1" />
     <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />
+    <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.0" />
 
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0">
@@ -22,8 +23,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\TUKI.Application\TUKI.Application.csproj" />
-    <ProjectReference Include="..\TUKI.Infrastructure\TUKI.Infrastructure.csproj" />
+    <ProjectReference Include="..\application\TUKI.Application.csproj" />
+    <ProjectReference Include="..\infrastructure\TUKI.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
