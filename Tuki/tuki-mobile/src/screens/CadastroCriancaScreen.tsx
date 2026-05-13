@@ -10,7 +10,8 @@ import {
     Platform,
     ScrollView,
     Keyboard,
-    ActivityIndicator
+    ActivityIndicator,
+    Image
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { criarUsuario } from '../services/api';
@@ -20,11 +21,11 @@ import { useAuth } from '../../app/hooks/useAuth';
 const bg = require('../../assets/images/background.jpg');
 
 const AVATARES = [
-    { id: 'avatar_1', icon: '🐸' },
-    { id: 'avatar_2', icon: '🐼' },
-    { id: 'avatar_3', icon: '🦊' },
-    { id: 'avatar_4', icon: '🦁' },
-    { id: 'avatar_5', icon: '🐱' },
+    { id: 'avatar_1', source: require('../../assets/images/avatar_1.jpg') },
+    { id: 'avatar_2', source: require('../../assets/images/avatar_2.jpg') },
+    { id: 'avatar_3', source: require('../../assets/images/avatar_3.jpg') },
+    { id: 'avatar_4', source: require('../../assets/images/avatar_4.jpg') },
+    { id: 'avatar_5', source: require('../../assets/images/avatar_5.jpg') },
 ];
 
 export default function CadastroCriancaScreen() {
@@ -79,8 +80,15 @@ export default function CadastroCriancaScreen() {
             // Sucesso! Volta para a seleção de perfil
             router.replace('/selecionar-perfil');
         } catch (error: any) {
-            console.error('Erro ao cadastrar criança:', error);
-            setErro(error.message || 'Erro ao conectar com o servidor.');
+            const msg = error.message || '';
+            if (msg.includes('409')) {
+                setErro('Já existe um perfil com esse nome. Tente outro.');
+            } else if (msg.includes('400')) {
+                setErro('Sessão expirada. Faça login novamente.');
+                router.replace('/login');
+            } else {
+                setErro('Erro ao conectar com o servidor.');
+            }
         } finally {
             setLoading(false);
         }
@@ -133,7 +141,7 @@ export default function CadastroCriancaScreen() {
                                             avatar === item.id && styles.avatarSelected
                                         ]}
                                     >
-                                        <Text style={{ fontSize: 30 }}>{item.icon}</Text>
+                                        <Image source={item.source} style={{ width: 45, height: 45, borderRadius: 22 }} />
                                     </TouchableOpacity>
                                 ))}
                             </View>

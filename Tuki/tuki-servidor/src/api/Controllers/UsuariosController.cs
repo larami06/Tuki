@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using TUKI.Application.DTOs;
 using TUKI.Application.Interfaces;
 
@@ -40,7 +41,18 @@ public class UsuariosController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<UsuarioResponseDto>> CreateUsuario(UsuarioCreateDto createDto)
     {
-        var result = await _usuarioService.AddAsync(createDto);
-        return CreatedAtAction(nameof(GetUsuario), new { id = result.Id }, result);
+        try
+        {
+            var result = await _usuarioService.AddAsync(createDto);
+            return CreatedAtAction(nameof(GetUsuario), new { id = result.Id }, result);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("23505") == true)
+        {
+            return Conflict(new { message = "Já existe um perfil com esse nome." });
+        }
+        catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("23503") == true)
+        {
+            return BadRequest(new { message = "Responsável não encontrado." });
+        }
     }
 }

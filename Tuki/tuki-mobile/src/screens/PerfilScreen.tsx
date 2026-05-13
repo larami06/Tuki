@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, StatusBar, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { API_URL } from '../services/api';
 import { obterPerfilAtivo } from '../services/storage';
@@ -16,12 +16,12 @@ interface Usuario {
   streakAtual: number;
 }
 
-const AVATARES_MAP: Record<string, string> = {
-  avatar_1: '🐸',
-  avatar_2: '🐼',
-  avatar_3: '🦊',
-  avatar_4: '🦁',
-  avatar_5: '🐱',
+const AVATARES_MAP: Record<string, any> = {
+  avatar_1: require('../../assets/images/avatar_1.jpg'),
+  avatar_2: require('../../assets/images/avatar_2.jpg'),
+  avatar_3: require('../../assets/images/avatar_3.jpg'),
+  avatar_4: require('../../assets/images/avatar_4.jpg'),
+  avatar_5: require('../../assets/images/avatar_5.jpg'),
 };
 
 export default function PerfilScreen() {
@@ -54,9 +54,10 @@ export default function PerfilScreen() {
             <LogOut size={22} color="#fff" />
           </TouchableOpacity>
           <View style={styles.avatarContainer}>
-            <Text style={styles.avatarEmoji}>
-              {usuario?.avatar ? (AVATARES_MAP[usuario.avatar] || '👤') : '👤'}
-            </Text>
+            {usuario?.avatar && AVATARES_MAP[usuario.avatar]
+              ? <Image source={AVATARES_MAP[usuario.avatar]} style={{ width: 70, height: 70, borderRadius: 35 }} />
+              : <Text style={styles.avatarEmoji}>👤</Text>
+            }
           </View>
           <Text style={styles.name}>{usuario?.nick || 'Visitante'}</Text>
           <Text style={styles.levelSubtitle}>

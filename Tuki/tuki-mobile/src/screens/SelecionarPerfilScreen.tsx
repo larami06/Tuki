@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ImageBackground, ScrollView, ActivityIndicator, Alert, Platform, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ImageBackground, ScrollView, ActivityIndicator, Alert, Platform, Modal, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { buscarPerfisDoResponsavel } from '../services/api';
 import { obterResponsavel, logout, salvarPerfilAtivo } from '../services/storage';
@@ -8,12 +8,12 @@ import { Stack } from 'expo-router';
 
 const bg = require('../../assets/images/background.jpg');
 
-const AVATARES_MAP: Record<string, string> = {
-    avatar_1: '🐸',
-    avatar_2: '🐼',
-    avatar_3: '🦊',
-    avatar_4: '🦁',
-    avatar_5: '🐱',
+const AVATARES_MAP: Record<string, any> = {
+    avatar_1: require('../../assets/images/avatar_1.jpg'),
+    avatar_2: require('../../assets/images/avatar_2.jpg'),
+    avatar_3: require('../../assets/images/avatar_3.jpg'),
+    avatar_4: require('../../assets/images/avatar_4.jpg'),
+    avatar_5: require('../../assets/images/avatar_5.jpg'),
 };
 
 export default function SelecionarPerfilScreen() {
@@ -76,9 +76,10 @@ export default function SelecionarPerfilScreen() {
                                     onPress={() => entrarPerfil(perfil)}
                                 >
                                     <View style={styles.avatarCircle}>
-                                        <Text style={{ fontSize: 40 }}>
-                                            {AVATARES_MAP[perfil.avatar] || '👤'}
-                                        </Text>
+                                        {AVATARES_MAP[perfil.avatar]
+                                            ? <Image source={AVATARES_MAP[perfil.avatar]} style={{ width: 70, height: 70, borderRadius: 35 }} />
+                                            : <Text style={{ fontSize: 40 }}>👤</Text>
+                                        }
                                     </View>
                                     <Text style={styles.profileName}>{perfil.nick}</Text>
                                 </TouchableOpacity>

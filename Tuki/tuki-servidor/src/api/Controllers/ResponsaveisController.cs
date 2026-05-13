@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using TUKI.Application.DTOs;
 using TUKI.Application.Interfaces;
 
@@ -26,8 +27,15 @@ public class ResponsaveisController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<ResponsavelResponseDto>> Create(ResponsavelCreateDto dto)
     {
-        var result = await _service.AddAsync(dto);
-        return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+        try
+        {
+            var result = await _service.AddAsync(dto);
+            return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("23505") == true)
+        {
+            return Conflict(new { message = "Este e-mail já está cadastrado." });
+        }
     }
     [HttpPost("login")]
     public async Task<ActionResult<ResponsavelResponseDto>> Login(LoginDto dto)

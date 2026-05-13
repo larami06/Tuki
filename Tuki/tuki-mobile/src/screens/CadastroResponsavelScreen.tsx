@@ -57,11 +57,13 @@ export default function CadastroResponsavelScreen() {
 
             router.replace('/cadastro-crianca');
 
-        } catch (error) {
-
-            setErro('Erro ao criar conta.');
-
-            console.error(error);
+        } catch (error: any) {
+            const msg = error.message || '';
+            if (msg.includes('409')) {
+                setErro('Este e-mail já está cadastrado.');
+            } else {
+                setErro('Erro ao conectar com o servidor.');
+            }
         }
 
     };
@@ -90,7 +92,7 @@ export default function CadastroResponsavelScreen() {
 
                             <Text style={styles.label}>Senha</Text>
                             <TextInput
-                                placeholder="Mínimo de 8 caracteres"
+                                placeholder="Mínimo de 6 caracteres"
                                 value={senha}
                                 onChangeText={setSenha}
                                 placeholderTextColor="#999"
