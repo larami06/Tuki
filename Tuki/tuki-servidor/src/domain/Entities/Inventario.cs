@@ -8,6 +8,7 @@ public class Inventario
     public int Estrelas { get; set; } = 0;
     public int LicoesConcluidas { get; set; } = 0;
     public int StreakAtual { get; set; } = 0;
+    public int XP { get; set; } = 0;
     public DateOnly? UltimaAtividade { get; set; }
 
     public Usuario? Usuario { get; set; }

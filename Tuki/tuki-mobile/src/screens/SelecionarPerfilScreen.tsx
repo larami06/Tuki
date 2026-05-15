@@ -53,7 +53,7 @@ export default function SelecionarPerfilScreen() {
     const confirmarSair = async () => {
         setModalVisible(false);
         await logout();
-        router.replace('/');
+        router.replace({ pathname: '/', params: { skipIntro: 'true' } });
     };
 
     if (authLoading) return null;

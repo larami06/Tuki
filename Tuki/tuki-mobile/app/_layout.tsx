@@ -1,12 +1,22 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
+import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
+// Segura o splash screen nativo até o app estar pronto
+SplashScreen.preventAutoHideAsync();
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+
+  useEffect(() => {
+    // Esconde o splash nativo após o layout montar (nossa tela de loading customizada assume)
+    SplashScreen.hideAsync();
+  }, []);
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
@@ -15,7 +25,7 @@ export default function RootLayout() {
         screenOptions={{
           headerShown: false,
           animation: 'slide_from_right',
-          animationDuration: 250,
+          animationDuration: 300,
         }}
       >
 
@@ -37,7 +47,7 @@ export default function RootLayout() {
           name="login"
           options={{
             title: 'Tuki - Entrar',
-            animation: 'slide_from_left',
+            animation: 'slide_from_right',
           }}
         />
 

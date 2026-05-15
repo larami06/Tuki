@@ -9,10 +9,12 @@ public class InventarioResponseDto
     public int LicoesConcluidas { get; set; }
     public int StreakAtual { get; set; }
     public DateOnly? UltimaAtividade { get; set; }
+    public int XP { get; set; }
 }
 
 public class InventarioUpdateDto
 {
     public int Moedas { get; set; }
     public int Estrelas { get; set; }
+    public int XP { get; set; }
 }

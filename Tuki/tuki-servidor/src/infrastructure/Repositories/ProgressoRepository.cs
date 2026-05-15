@@ -15,13 +15,19 @@ public class ProgressoRepository : IProgressoRepository
     }
 
     public async Task<IEnumerable<Progresso>> GetByUsuarioAsync(int idUsuario)
-        => await _context.Progressos.Where(p => p.IdUsuario == idUsuario).ToListAsync();
+        => await _context.Progressos
+            .Include(p => p.Licao)
+            .Where(p => p.IdUsuario == idUsuario)
+            .ToListAsync();
 
     public async Task<Progresso?> GetByIdAsync(int id)
-        => await _context.Progressos.FindAsync(id);
+        => await _context.Progressos
+            .Include(p => p.Licao)
+            .FirstOrDefaultAsync(p => p.IdProgresso == id);
 
     public async Task<Progresso?> GetByUsuarioELicaoAsync(int idUsuario, int idLicao)
         => await _context.Progressos
+            .Include(p => p.Licao)
             .FirstOrDefaultAsync(p => p.IdUsuario == idUsuario && p.IdLicao == idLicao);
 
     public async Task AddAsync(Progresso progresso)

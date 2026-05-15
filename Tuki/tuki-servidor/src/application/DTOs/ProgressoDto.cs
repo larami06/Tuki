@@ -19,4 +19,5 @@ public class ProgressoResponseDto
     public int Tentativas { get; set; }
     public int? TempoResposta { get; set; }
     public bool Concluida { get; set; }
+    public string Materia { get; set; } = string.Empty;
 }

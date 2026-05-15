@@ -13,7 +13,9 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Moedas, opt => opt.MapFrom(src => src.Inventario != null ? src.Inventario.Moedas : 0))
             .ForMember(dest => dest.Estrelas, opt => opt.MapFrom(src => src.Inventario != null ? src.Inventario.Estrelas : 0))
             .ForMember(dest => dest.LicoesConcluidas, opt => opt.MapFrom(src => src.Inventario != null ? src.Inventario.LicoesConcluidas : 0))
-            .ForMember(dest => dest.StreakAtual, opt => opt.MapFrom(src => src.Inventario != null ? src.Inventario.StreakAtual : 0));
+            .ForMember(dest => dest.StreakAtual, opt => opt.MapFrom(src => src.Inventario != null ? src.Inventario.StreakAtual : 0))
+            .ForMember(dest => dest.XP, opt => opt.MapFrom(src => src.Inventario != null ? src.Inventario.XP : 0));
+            
         CreateMap<UsuarioCreateDto, Usuario>();
 
         CreateMap<Responsavel, ResponsavelResponseDto>()
@@ -30,7 +32,9 @@ public class MappingProfile : Profile
         CreateMap<LicaoCreateDto, Licao>();
 
         CreateMap<Progresso, ProgressoResponseDto>()
-            .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.IdProgresso));
+            .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.IdProgresso))
+            .ForMember(dest => dest.Materia, opt => opt.MapFrom(src => src.Licao != null ? src.Licao.TipoLicao : "Outros"));
+            
         CreateMap<ProgressoCreateDto, Progresso>();
     }
 }

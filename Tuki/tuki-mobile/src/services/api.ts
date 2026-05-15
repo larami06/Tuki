@@ -29,6 +29,7 @@ export interface UsuarioResponseDto {
   estrelas: number;
   licoesConcluidas: number;
   streakAtual: number;
+  xp: number;
 }
 
 export interface ResponsavelCreateDto {
@@ -39,6 +40,17 @@ export interface ResponsavelCreateDto {
 export interface ResponsavelResponseDto {
   id: number;
   email: string;
+}
+
+export interface ProgressoResponseDto {
+  id: number;
+  idUsuario: number;
+  idLicao: number;
+  pontuacao: number;
+  tentativas: number;
+  tempoResposta: number;
+  concluida: boolean;
+  materia: string;
 }
 
 // FUNÇÕES DE USUÁRIO (CRIANÇA)
@@ -56,7 +68,7 @@ export const criarUsuario = async (usuario: UsuarioCreateDto): Promise<UsuarioRe
     throw new Error(`Erro ${response.status}: ${texto}`);
   }
 
-  return response.json();
+  return response.json() as Promise<UsuarioResponseDto>;
 };
 
 export const buscarPerfisDoResponsavel = async (idResponsavel: number): Promise<UsuarioResponseDto[]> => {
@@ -66,7 +78,18 @@ export const buscarPerfisDoResponsavel = async (idResponsavel: number): Promise<
     throw new Error('Erro ao buscar perfis do responsável');
   }
 
-  return response.json();
+  return response.json() as Promise<UsuarioResponseDto[]>;
+};
+
+// FUNÇÕES DE PROGRESSO
+export const buscarProgressoDoUsuario = async (idUsuario: number): Promise<ProgressoResponseDto[]> => {
+  const response = await fetch(`${API_URL}/api/Progressos/usuario/${idUsuario}`);
+
+  if (!response.ok) {
+    throw new Error('Erro ao buscar progresso do usuário');
+  }
+
+  return response.json() as Promise<ProgressoResponseDto[]>;
 };
 
 // FUNÇÕES DE RESPONSÁVEL (PAI/MÃE)
@@ -84,7 +107,7 @@ export const criarResponsavel = async (dados: ResponsavelCreateDto): Promise<Res
     throw new Error(`Erro ${response.status}: ${texto}`);
   }
 
-  return response.json();
+  return response.json() as Promise<ResponsavelResponseDto>;
 };
 
 export const loginResponsavel = async (email: string, senha: string): Promise<ResponsavelResponseDto> => {
@@ -100,5 +123,5 @@ export const loginResponsavel = async (email: string, senha: string): Promise<Re
     throw new Error('Email ou senha inválidos.');
   }
 
-  return response.json();
+  return response.json() as Promise<ResponsavelResponseDto>;
 };

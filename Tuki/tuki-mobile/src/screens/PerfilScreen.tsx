@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, StatusBar, Image } from 'react-native';
 import { useRouter } from 'expo-router';
-import { API_URL } from '../services/api';
+import { API_URL, buscarProgressoDoUsuario, ProgressoResponseDto } from '../services/api';
 import { obterPerfilAtivo } from '../services/storage';
 import { BookOpen, Star, Flame, TrendingUp, Trophy, Target, Home, Book, LogOut, ShoppingBag, User } from 'lucide-react-native';
 
@@ -14,6 +14,7 @@ interface Usuario {
   estrelas: number;
   licoesConcluidas: number;
   streakAtual: number;
+  xp: number;
 }
 
 const AVATARES_MAP: Record<string, any> = {
@@ -27,19 +28,42 @@ const AVATARES_MAP: Record<string, any> = {
 export default function PerfilScreen() {
   const router = useRouter();
   const [usuario, setUsuario] = useState<Usuario | null>(null);
+  const [progressos, setProgressos] = useState<ProgressoResponseDto[]>([]);
+  
   const sair = async () => {
     router.replace('/selecionar-perfil');
   };
 
   useEffect(() => {
-    const carregarPerfil = async () => {
+    const carregarDados = async () => {
       const perfil = await obterPerfilAtivo();
       if (perfil) {
         setUsuario(perfil);
+        try {
+          const prog = await buscarProgressoDoUsuario(perfil.id);
+          setProgressos(prog);
+        } catch (err) {
+          console.error("Erro ao carregar progresso:", err);
+        }
       }
     };
-    carregarPerfil();
+    carregarDados();
   }, []);
+
+  // Função para calcular progresso médio por matéria
+  const calcularProgressoPorMateria = (materia: string) => {
+    const filtrados = progressos.filter(p => p.materia.toLowerCase() === materia.toLowerCase());
+    if (filtrados.length === 0) return 0;
+    
+    // Supondo que o progresso seja baseado no número de lições concluídas sobre um total fictício de 10 por enquanto
+    // Ou se cada lição tem uma pontuação de 0 a 100
+    const concluidas = filtrados.filter(p => p.concluida).length;
+    return Math.min(Math.round((concluidas / 10) * 100), 100); // 10 é um valor base exemplo
+  };
+
+  const progAlfabetizacao = calcularProgressoPorMateria('Alfabetizacao');
+  const progMatematica = calcularProgressoPorMateria('Matematica');
+  const progCognitivo = calcularProgressoPorMateria('Cognitivo');
 
   return (
     <SafeAreaView style={styles.container}>
@@ -61,18 +85,18 @@ export default function PerfilScreen() {
           </View>
           <Text style={styles.name}>{usuario?.nick || 'Visitante'}</Text>
           <Text style={styles.levelSubtitle}>
-            {usuario?.idade ? `${usuario.idade} anos` : 'Idade não informada'} • Nível 4
+            {usuario?.idade ? `${usuario.idade} anos` : 'Idade não informada'} • Nível {Math.floor((usuario?.xp || 0) / 100) + 1}
           </Text>
 
           <View style={styles.levelProgressContainer}>
             <View style={styles.levelLabels}>
-              <Text style={styles.levelLabel}>Nível 4</Text>
-              <Text style={styles.levelLabel}>Nível 5</Text>
+              <Text style={styles.levelLabel}>Nível {Math.floor((usuario?.xp || 0) / 100) + 1}</Text>
+              <Text style={styles.levelLabel}>Nível {Math.floor((usuario?.xp || 0) / 100) + 2}</Text>
             </View>
             <View style={styles.progressBarBackground}>
-              <View style={[styles.progressBarFill, { width: '64%' }]} />
+              <View style={[styles.progressBarFill, { width: `${(usuario?.xp || 0) % 100}%` }]} />
             </View>
-            <Text style={styles.xpText}>320 / 500 XP</Text>
+            <Text style={styles.xpText}>{(usuario?.xp || 0) % 100} / 100 XP para o próximo nível</Text>
           </View>
         </View>
 
@@ -80,22 +104,22 @@ export default function PerfilScreen() {
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
             <BookOpen size={24} color="#7c3aed" />
-            <Text style={styles.statValue}>12</Text>
+            <Text style={styles.statValue}>{usuario?.licoesConcluidas || 0}</Text>
             <Text style={styles.statLabel}>Lições</Text>
           </View>
           <View style={styles.statCard}>
             <Star size={24} color="#f59e0b" />
-            <Text style={styles.statValue}>24</Text>
+            <Text style={styles.statValue}>{usuario?.estrelas || 0}</Text>
             <Text style={styles.statLabel}>Estrelas</Text>
           </View>
           <View style={styles.statCard}>
             <Flame size={24} color="#ef4444" />
-            <Text style={styles.statValue}>5 dias</Text>
+            <Text style={styles.statValue}>{usuario?.streakAtual || 0}</Text>
             <Text style={styles.statLabel}>Streak</Text>
           </View>
           <View style={styles.statCard}>
             <TrendingUp size={24} color="#10b981" />
-            <Text style={styles.statValue}>320</Text>
+            <Text style={styles.statValue}>{usuario?.xp || 0}</Text>
             <Text style={styles.statLabel}>XP Total</Text>
           </View>
         </View>
@@ -104,36 +128,36 @@ export default function PerfilScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Target size={24} color="#7c3aed" />
-            <Text style={styles.sectionTitle}>Progresso</Text>
+            <Text style={styles.sectionTitle}>Progresso Real</Text>
           </View>
 
           <View style={styles.progressCard}>
             <View style={styles.progressRow}>
               <Text style={styles.progressLabel}>Alfabetização</Text>
-              <Text style={styles.progressPercent}>75%</Text>
+              <Text style={styles.progressPercent}>{progAlfabetizacao}%</Text>
             </View>
             <View style={styles.subjectBarBg}>
-              <View style={[styles.subjectBarFill, { width: '75%', backgroundColor: '#7c3aed' }]} />
+              <View style={[styles.subjectBarFill, { width: `${progAlfabetizacao}%`, backgroundColor: '#7c3aed' }]} />
             </View>
           </View>
 
           <View style={styles.progressCard}>
             <View style={styles.progressRow}>
               <Text style={styles.progressLabel}>Matemática</Text>
-              <Text style={styles.progressPercent}>45%</Text>
+              <Text style={styles.progressPercent}>{progMatematica}%</Text>
             </View>
             <View style={styles.subjectBarBg}>
-              <View style={[styles.subjectBarFill, { width: '45%', backgroundColor: '#f97316' }]} />
+              <View style={[styles.subjectBarFill, { width: `${progMatematica}%`, backgroundColor: '#f97316' }]} />
             </View>
           </View>
 
           <View style={styles.progressCard}>
             <View style={styles.progressRow}>
               <Text style={styles.progressLabel}>Cognitivo</Text>
-              <Text style={styles.progressPercent}>30%</Text>
+              <Text style={styles.progressPercent}>{progCognitivo}%</Text>
             </View>
             <View style={styles.subjectBarBg}>
-              <View style={[styles.subjectBarFill, { width: '30%', backgroundColor: '#22c55e' }]} />
+              <View style={[styles.subjectBarFill, { width: `${progCognitivo}%`, backgroundColor: '#22c55e' }]} />
             </View>
           </View>
         </View>

@@ -19,4 +19,5 @@ public class UsuarioResponseDto
     public int Estrelas { get; set; }
     public int LicoesConcluidas { get; set; }
     public int StreakAtual { get; set; }
+    public int XP { get; set; }
 }
