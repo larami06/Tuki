@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, StatusBar, Image } from 'react-native';
 import { useRouter } from 'expo-router';
-import { API_URL, buscarProgressoDoUsuario, ProgressoResponseDto } from '../services/api';
-import { obterPerfilAtivo } from '../services/storage';
+import { API_URL, buscarProgressoDoUsuario, ProgressoResponseDto, buscarUsuarioPorId } from '../services/api';
+import { obterPerfilAtivo, salvarPerfilAtivo } from '../services/storage';
 import { BookOpen, Star, Flame, TrendingUp, Trophy, Target, Home, Book, LogOut, ShoppingBag, User } from 'lucide-react-native';
 
 interface Usuario {
@@ -38,7 +38,15 @@ export default function PerfilScreen() {
     const carregarDados = async () => {
       const perfil = await obterPerfilAtivo();
       if (perfil) {
-        setUsuario(perfil);
+        try {
+          const perfilAtualizado = await buscarUsuarioPorId(perfil.id);
+          setUsuario(perfilAtualizado);
+          await salvarPerfilAtivo(perfilAtualizado);
+        } catch (err) {
+          console.error("Erro ao carregar perfil atualizado do banco:", err);
+          setUsuario(perfil);
+        }
+        
         try {
           const prog = await buscarProgressoDoUsuario(perfil.id);
           setProgressos(prog);
@@ -52,11 +60,13 @@ export default function PerfilScreen() {
 
   // Função para calcular progresso médio por matéria
   const calcularProgressoPorMateria = (materia: string) => {
-    const filtrados = progressos.filter(p => p.materia.toLowerCase() === materia.toLowerCase());
+    const normalizeString = (str: string) => 
+      str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
+
+    const filtrados = progressos.filter(p => normalizeString(p.materia) === normalizeString(materia));
     if (filtrados.length === 0) return 0;
     
     // Supondo que o progresso seja baseado no número de lições concluídas sobre um total fictício de 10 por enquanto
-    // Ou se cada lição tem uma pontuação de 0 a 100
     const concluidas = filtrados.filter(p => p.concluida).length;
     return Math.min(Math.round((concluidas / 10) * 100), 100); // 10 é um valor base exemplo
   };

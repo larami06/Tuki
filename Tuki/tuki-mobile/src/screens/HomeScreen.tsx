@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Image, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { BookOpen, Star, Sparkles, Trophy, Flame, Coins, Target, Home as HomeIcon, Book, ShoppingBag, User, Bell, Play } from 'lucide-react-native';
-import { obterPerfilAtivo } from '../services/storage';
+import { obterPerfilAtivo, salvarPerfilAtivo } from '../services/storage';
 import { useAuth } from '../../app/hooks/useAuth';
-import { API_URL } from '../services/api';
+import { API_URL, buscarUsuarioPorId } from '../services/api';
+import { playSound } from '../services/sound';
 
 interface Usuario {
   id: number;
@@ -57,6 +58,13 @@ export default function HomeScreen() {
       const perfil = await obterPerfilAtivo();
       if (perfil) {
         setUsuario(perfil);
+        try {
+          const perfilAtualizado = await buscarUsuarioPorId(perfil.id);
+          setUsuario(perfilAtualizado);
+          await salvarPerfilAtivo(perfilAtualizado);
+        } catch (error) {
+          console.error("Erro ao sincronizar perfil na HomeScreen:", error);
+        }
       } else {
         router.replace('/selecionar-perfil');
       }
@@ -202,7 +210,7 @@ export default function HomeScreen() {
           <HomeIcon size={24} color="#7c3aed" />
           <Text style={[styles.navLabel, { color: '#7c3aed', fontWeight: 'bold' }]}>Início</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => { playSound('click'); router.push('/atividades'); }}>
           <Book size={24} color="#6b7280" />
           <Text style={styles.navLabel}>Atividades</Text>
         </TouchableOpacity>

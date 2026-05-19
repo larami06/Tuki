@@ -60,6 +60,38 @@ using (var scope = app.Services.CreateScope())
     var context = scope.ServiceProvider.GetRequiredService<TukiDbContext>();
     context.Database.EnsureCreated();
 
+    try
+    {
+        Console.WriteLine("================================================================================");
+        Console.WriteLine("DB DIAGNOSTICS:");
+        var users = context.Usuarios.Include(u => u.Inventario).ToList();
+        Console.WriteLine($"Total Users: {users.Count}");
+        foreach (var u in users)
+        {
+            Console.WriteLine($"User ID: {u.IdUsuario}, Nick: {u.Nick}, Age: {u.Idade}");
+            if (u.Inventario != null)
+            {
+                Console.WriteLine($"  -> Inventario found! Coins: {u.Inventario.Moedas}, Stars: {u.Inventario.Estrelas}, Concluded: {u.Inventario.LicoesConcluidas}");
+            }
+            else
+            {
+                Console.WriteLine("  -> Inventario is NULL!");
+            }
+            
+            var progs = context.Progressos.Where(p => p.IdUsuario == u.IdUsuario).ToList();
+            Console.WriteLine($"  -> Total Progress Records: {progs.Count}");
+            foreach (var p in progs)
+            {
+                Console.WriteLine($"     Progresso ID: {p.IdProgresso}, Lesson ID: {p.IdLicao}, Score: {p.Pontuacao}, Concluded: {p.Concluida}");
+            }
+        }
+        Console.WriteLine("================================================================================");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("DIAGNOSTICS ERROR: " + ex.Message);
+    }
+
     if (!context.Responsaveis.Any())
     {
         var responsavel = new Responsavel 
@@ -83,6 +115,20 @@ using (var scope = app.Services.CreateScope())
         
         context.Inventarios.Add(new Inventario { IdUsuario = 1, Moedas = 100, Estrelas = 5 });
         
+        context.SaveChanges();
+    }
+
+    if (!context.Licoes.Any())
+    {
+        context.Licoes.AddRange(
+            new Licao { IdLicao = 1, Conteudo = "Vogais Mágicas", NivelDificuldade = "Facil", TipoLicao = "Alfabetização", IdadeMinima = 4, IdadeMaxima = 8 },
+            new Licao { IdLicao = 2, Conteudo = "Encontro de Sons", NivelDificuldade = "Facil", TipoLicao = "Alfabetização", IdadeMinima = 4, IdadeMaxima = 8 },
+            new Licao { IdLicao = 3, Conteudo = "Família do B e C", NivelDificuldade = "Medio", TipoLicao = "Alfabetização", IdadeMinima = 5, IdadeMaxima = 9 },
+            new Licao { IdLicao = 4, Conteudo = "Palavras Curtas", NivelDificuldade = "Medio", TipoLicao = "Alfabetização", IdadeMinima = 5, IdadeMaxima = 9 },
+            new Licao { IdLicao = 5, Conteudo = "Frases Divertidas", NivelDificuldade = "Dificil", TipoLicao = "Alfabetização", IdadeMinima = 6, IdadeMaxima = 10 },
+            new Licao { IdLicao = 6, Conteudo = "Pequenos Contos", NivelDificuldade = "Dificil", TipoLicao = "Alfabetização", IdadeMinima = 6, IdadeMaxima = 10 },
+            new Licao { IdLicao = 7, Conteudo = "Desafio Final", NivelDificuldade = "Dificil", TipoLicao = "Alfabetização", IdadeMinima = 7, IdadeMaxima = 11 }
+        );
         context.SaveChanges();
     }
 }

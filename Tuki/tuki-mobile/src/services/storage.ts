@@ -61,3 +61,38 @@ export async function logout() {
         console.error('Erro ao fazer logout:', error);
     }
 }
+
+// PROGRESSO ALFABETIZACAO
+const CHAVE_PROGRESSO_ALFABETIZACAO = '@tuki_progresso_alfa';
+
+export async function salvarAtividadeConcluida(atividadeId: number) {
+    try {
+        const perfil = await obterPerfilAtivo();
+        const perfilId = perfil ? perfil.id : 'default';
+        const key = `${CHAVE_PROGRESSO_ALFABETIZACAO}_${perfilId}`;
+        
+        const dados = await AsyncStorage.getItem(key);
+        let concluidas = dados ? JSON.parse(dados) : [];
+        
+        if (!concluidas.includes(atividadeId)) {
+            concluidas.push(atividadeId);
+            await AsyncStorage.setItem(key, JSON.stringify(concluidas));
+        }
+    } catch (error) {
+        console.error('Erro ao salvar progresso:', error);
+    }
+}
+
+export async function obterAtividadesConcluidas() {
+    try {
+        const perfil = await obterPerfilAtivo();
+        const perfilId = perfil ? perfil.id : 'default';
+        const key = `${CHAVE_PROGRESSO_ALFABETIZACAO}_${perfilId}`;
+        
+        const dados = await AsyncStorage.getItem(key);
+        return dados ? JSON.parse(dados) : [];
+    } catch (error) {
+        console.error('Erro ao obter progresso:', error);
+        return [];
+    }
+}

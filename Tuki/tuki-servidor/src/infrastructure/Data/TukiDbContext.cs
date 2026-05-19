@@ -53,6 +53,7 @@ public class TukiDbContext : DbContext
         {
             e.ToTable("inventario");
             e.HasKey(i => i.IdInventario);
+            e.Ignore(i => i.XP);
             e.Property(i => i.IdInventario).HasColumnName("idinventario");
             e.Property(i => i.IdUsuario).HasColumnName("idusuario");
             e.Property(i => i.Moedas).HasColumnName("moedas");

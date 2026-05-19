@@ -1,21 +1,52 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { ChevronLeft, Star, Lock, Play, Award } from 'lucide-react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { obterPerfilAtivo } from '../services/storage';
+import { buscarProgressoDoUsuario } from '../services/api';
 
-const LEVELS = [
-  { id: 1, title: 'Vogais Mágicas', status: 'completed', icon: 'format-letter-case', color: '#ff6b6b' },
-  { id: 2, title: 'Encontro de Sons', status: 'current', icon: 'account-voice', color: '#4ecdc4' },
-  { id: 3, title: 'Família do B e C', status: 'locked', icon: 'bee', color: '#45b7d1' },
-  { id: 4, title: 'Palavras Curtas', status: 'locked', icon: 'pencil', color: '#96ceb4' },
-  { id: 5, title: 'Frases Divertidas', status: 'locked', icon: 'balloon', color: '#ffeead' },
-  { id: 6, title: 'Pequenos Contos', status: 'locked', icon: 'book-open-page-variant', color: '#ffcc5c' },
-  { id: 7, title: 'Desafio Final', status: 'locked', icon: 'trophy', color: '#ff6f69' },
+const BASE_LEVELS = [
+  { id: 1, title: 'Vogais Mágicas', icon: 'format-letter-case', color: '#ff6b6b', route: '/vogais-magicas' },
+  { id: 2, title: 'Encontro de Sons', icon: 'account-voice', color: '#4ecdc4', route: '/encontro-sons' },
+  { id: 3, title: 'Família do B e C', icon: 'bee', color: '#45b7d1' },
+  { id: 4, title: 'Palavras Curtas', icon: 'pencil', color: '#96ceb4' },
+  { id: 5, title: 'Frases Divertidas', icon: 'balloon', color: '#ffeead' },
+  { id: 6, title: 'Pequenos Contos', icon: 'book-open-page-variant', color: '#ffcc5c' },
+  { id: 7, title: 'Desafio Final', icon: 'trophy', color: '#ff6f69' },
 ];
 
 export default function TrilhaAlfabetizacaoScreen() {
   const router = useRouter();
+  const [completedActivities, setCompletedActivities] = useState<number[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const fetchProgress = async () => {
+        try {
+          const perfil = await obterPerfilAtivo();
+          if (perfil) {
+            const progresso = await buscarProgressoDoUsuario(perfil.id);
+            const concluidas = progresso.filter(p => p.concluida).map(p => p.idLicao);
+            setCompletedActivities(concluidas);
+          }
+        } catch (error) {
+          console.error("Erro ao buscar progresso do banco:", error);
+        }
+      };
+      fetchProgress();
+    }, [])
+  );
+
+  const levels = BASE_LEVELS.map(level => {
+    let status = 'locked';
+    if (completedActivities.includes(level.id)) {
+      status = 'completed';
+    } else if (level.id === 1 || completedActivities.includes(level.id - 1)) {
+      status = 'current';
+    }
+    return { ...level, status };
+  });
 
   return (
     <SafeAreaView style={styles.container}>
@@ -35,7 +66,7 @@ export default function TrilhaAlfabetizacaoScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.trailContainer}>
-          {LEVELS.map((level, index) => {
+          {levels.map((level, index) => {
             const isLeft = index % 2 === 0;
             const isLocked = level.status === 'locked';
             const isCurrent = level.status === 'current';
@@ -61,6 +92,13 @@ export default function TrilhaAlfabetizacaoScreen() {
                     isCurrent && styles.currentLevel
                   ]}
                   disabled={isLocked}
+                  onPress={() => {
+                    if (level.route) {
+                      router.push(level.route as any);
+                    } else {
+                      router.push({ pathname: '/atividade' as any, params: { id: level.id, title: level.title } });
+                    }
+                  }}
                 >
                   {isLocked ? (
                     <Lock size={24} color="#9ca3af" />

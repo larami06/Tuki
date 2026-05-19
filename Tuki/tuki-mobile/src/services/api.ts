@@ -71,6 +71,16 @@ export const criarUsuario = async (usuario: UsuarioCreateDto): Promise<UsuarioRe
   return response.json() as Promise<UsuarioResponseDto>;
 };
 
+export const buscarUsuarioPorId = async (id: number): Promise<UsuarioResponseDto> => {
+  const response = await fetch(`${API_URL}/api/Usuarios/${id}`);
+
+  if (!response.ok) {
+    throw new Error('Erro ao buscar usuário por ID');
+  }
+
+  return response.json() as Promise<UsuarioResponseDto>;
+};
+
 export const buscarPerfisDoResponsavel = async (idResponsavel: number): Promise<UsuarioResponseDto[]> => {
   const response = await fetch(`${API_URL}/api/Usuarios/responsavel/${idResponsavel}`);
 
@@ -82,6 +92,32 @@ export const buscarPerfisDoResponsavel = async (idResponsavel: number): Promise<
 };
 
 // FUNÇÕES DE PROGRESSO
+export interface ProgressoCreateDto {
+  idUsuario: number;
+  idLicao: number;
+  pontuacao?: number;
+  tentativas: number;
+  tempoResposta?: number;
+  concluida: boolean;
+}
+
+export const registrarProgresso = async (dto: ProgressoCreateDto): Promise<ProgressoResponseDto> => {
+  const response = await fetch(`${API_URL}/api/Progressos`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(dto),
+  });
+
+  if (!response.ok) {
+    const texto = await response.text();
+    throw new Error(`Erro ${response.status}: ${texto}`);
+  }
+
+  return response.json() as Promise<ProgressoResponseDto>;
+};
+
 export const buscarProgressoDoUsuario = async (idUsuario: number): Promise<ProgressoResponseDto[]> => {
   const response = await fetch(`${API_URL}/api/Progressos/usuario/${idUsuario}`);
 
