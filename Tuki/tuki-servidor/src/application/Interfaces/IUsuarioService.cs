@@ -8,4 +8,6 @@ public interface IUsuarioService
     Task<UsuarioResponseDto?> GetByIdAsync(int id);
     Task<UsuarioResponseDto> AddAsync(UsuarioCreateDto dto);
     Task<IEnumerable<UsuarioResponseDto>> GetByResponsavelIdAsync(int responsavelId);
+    Task<UsuarioResponseDto?> UpdateAsync(int id, UsuarioUpdateDto dto);
+    Task<IEnumerable<RecompensaResponseDto>> GetRecompensasAsync(int id);
 }

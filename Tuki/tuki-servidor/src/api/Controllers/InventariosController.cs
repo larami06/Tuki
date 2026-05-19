@@ -36,4 +36,22 @@ public class InventariosController : ControllerBase
             return NotFound(e.Message);
         }
     }
+
+    [HttpPost("usuario/{idUsuario}/comprar")]
+    public async Task<ActionResult<InventarioResponseDto>> Comprar(int idUsuario, ComprarRecompensaDto dto)
+    {
+        try
+        {
+            var resultado = await _service.ComprarRecompensaAsync(idUsuario, dto.IdRecompensa);
+            return Ok(resultado);
+        }
+        catch (KeyNotFoundException e)
+        {
+            return NotFound(e.Message);
+        }
+        catch (InvalidOperationException e)
+        {
+            return BadRequest(new { message = e.Message });
+        }
+    }
 }

@@ -118,6 +118,22 @@ using (var scope = app.Services.CreateScope())
         context.SaveChanges();
     }
 
+    if (!context.Recompensas.Any())
+    {
+        context.Recompensas.AddRange(
+            new Recompensa { IdRecompensa = 1, Tipo = "avatar", Valor = 50,  Nome = "Avatar Monstro",  Identificador = "avatar_2" },
+            new Recompensa { IdRecompensa = 2, Tipo = "avatar", Valor = 75,  Nome = "Avatar Robô",     Identificador = "avatar_3" },
+            new Recompensa { IdRecompensa = 3, Tipo = "avatar", Valor = 100, Nome = "Avatar Alien",    Identificador = "avatar_4" },
+            new Recompensa { IdRecompensa = 4, Tipo = "avatar", Valor = 150, Nome = "Avatar Dragão",   Identificador = "avatar_5" },
+            new Recompensa { IdRecompensa = 5, Tipo = "fundo",  Valor = 80,  Nome = "Fundo Rosa",      Identificador = "#ec4899" },
+            new Recompensa { IdRecompensa = 6, Tipo = "fundo",  Valor = 80,  Nome = "Fundo Verde",     Identificador = "#10b981" },
+            new Recompensa { IdRecompensa = 7, Tipo = "fundo",  Valor = 80,  Nome = "Fundo Azul",      Identificador = "#3b82f6" },
+            new Recompensa { IdRecompensa = 8, Tipo = "fundo",  Valor = 80,  Nome = "Fundo Laranja",   Identificador = "#f97316" },
+            new Recompensa { IdRecompensa = 9, Tipo = "fundo",  Valor = 80,  Nome = "Fundo Vermelho",  Identificador = "#ef4444" }
+        );
+        context.SaveChanges();
+    }
+
     if (!context.Licoes.Any())
     {
         context.Licoes.AddRange(

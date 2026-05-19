@@ -28,4 +28,26 @@ public class InventarioRepository : IInventarioRepository
         _context.Inventarios.Update(inventario);
         await _context.SaveChangesAsync();
     }
+
+    public async Task ComprarRecompensaAsync(int idUsuario, int idRecompensa)
+    {
+        var inventario = await _context.Inventarios.FirstOrDefaultAsync(i => i.IdUsuario == idUsuario)
+            ?? throw new KeyNotFoundException("Inventário não encontrado.");
+
+        var recompensa = await _context.Recompensas.FindAsync(idRecompensa)
+            ?? throw new KeyNotFoundException("Recompensa não encontrada.");
+
+        var jaAdquirida = await _context.UsuariosRecompensas
+            .AnyAsync(ur => ur.IdUsuario == idUsuario && ur.IdRecompensa == idRecompensa);
+
+        if (jaAdquirida)
+            throw new InvalidOperationException("Item já adquirido.");
+
+        if (inventario.Moedas < (int)recompensa.Valor)
+            throw new InvalidOperationException("Moedas insuficientes.");
+
+        inventario.Moedas -= (int)recompensa.Valor;
+        _context.UsuariosRecompensas.Add(new UsuarioRecompensa { IdUsuario = idUsuario, IdRecompensa = idRecompensa });
+        await _context.SaveChangesAsync();
+    }
 }

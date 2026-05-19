@@ -44,4 +44,22 @@ public class UsuarioService : IUsuarioService
         var usuarios = await _repository.GetByResponsavelIdAsync(responsavelId);
         return _mapper.Map<IEnumerable<UsuarioResponseDto>>(usuarios);
     }
+
+    public async Task<UsuarioResponseDto?> UpdateAsync(int id, UsuarioUpdateDto dto)
+    {
+        var usuario = await _repository.GetByIdAsync(id);
+        if (usuario == null) return null;
+
+        if (!string.IsNullOrEmpty(dto.Avatar)) usuario.Avatar = dto.Avatar;
+        if (!string.IsNullOrEmpty(dto.Tema)) usuario.Tema = dto.Tema;
+
+        await _repository.UpdateAsync(usuario);
+        return _mapper.Map<UsuarioResponseDto>(usuario);
+    }
+
+    public async Task<IEnumerable<RecompensaResponseDto>> GetRecompensasAsync(int id)
+    {
+        var recompensas = await _repository.GetRecompensasAsync(id);
+        return _mapper.Map<IEnumerable<RecompensaResponseDto>>(recompensas);
+    }
 }

@@ -214,7 +214,7 @@ export default function HomeScreen() {
           <Book size={24} color="#6b7280" />
           <Text style={styles.navLabel}>Atividades</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => { playSound('click'); router.push('/loja' as any); }}>
           <ShoppingBag size={24} color="#6b7280" />
           <Text style={styles.navLabel}>Loja</Text>
         </TouchableOpacity>

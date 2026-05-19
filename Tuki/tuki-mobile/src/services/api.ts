@@ -24,7 +24,31 @@ export interface UsuarioResponseDto {
   nick: string;
   idade: number;
   avatar: string;
+  tema: string;
   idResponsavel: number;
+  moedas: number;
+  estrelas: number;
+  licoesConcluidas: number;
+  streakAtual: number;
+  xp: number;
+}
+
+export interface UsuarioUpdateDto {
+  avatar?: string;
+  tema?: string;
+}
+
+export interface RecompensaDto {
+  id: number;
+  tipo: string;
+  valor: number;
+  nome: string;
+  identificador: string;
+}
+
+export interface InventarioResponseDto {
+  idInventario: number;
+  idUsuario: number;
   moedas: number;
   estrelas: number;
   licoesConcluidas: number;
@@ -126,6 +150,41 @@ export const buscarProgressoDoUsuario = async (idUsuario: number): Promise<Progr
   }
 
   return response.json() as Promise<ProgressoResponseDto[]>;
+};
+
+export const atualizarUsuario = async (id: number, dto: UsuarioUpdateDto): Promise<UsuarioResponseDto> => {
+  const response = await fetch(`${API_URL}/api/Usuarios/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(dto),
+  });
+  if (!response.ok) throw new Error('Erro ao atualizar usuário');
+  return response.json() as Promise<UsuarioResponseDto>;
+};
+
+export const buscarRecompensas = async (): Promise<RecompensaDto[]> => {
+  const response = await fetch(`${API_URL}/api/Recompensas`);
+  if (!response.ok) throw new Error('Erro ao buscar recompensas');
+  return response.json() as Promise<RecompensaDto[]>;
+};
+
+export const buscarRecompensasDoUsuario = async (idUsuario: number): Promise<RecompensaDto[]> => {
+  const response = await fetch(`${API_URL}/api/Usuarios/${idUsuario}/recompensas`);
+  if (!response.ok) throw new Error('Erro ao buscar recompensas do usuário');
+  return response.json() as Promise<RecompensaDto[]>;
+};
+
+export const comprarRecompensa = async (idUsuario: number, idRecompensa: number): Promise<InventarioResponseDto> => {
+  const response = await fetch(`${API_URL}/api/Inventarios/usuario/${idUsuario}/comprar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idRecompensa }),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({ message: 'Erro desconhecido' })) as { message?: string };
+    throw new Error(body.message || 'Erro ao comprar item');
+  }
+  return response.json() as Promise<InventarioResponseDto>;
 };
 
 // FUNÇÕES DE RESPONSÁVEL (PAI/MÃE)

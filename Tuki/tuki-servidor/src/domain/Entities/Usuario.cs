@@ -6,6 +6,7 @@ public class Usuario
     public string Nick { get; set; } = string.Empty;
     public int Idade { get; set; }
     public string Avatar { get; set; } = "avatar_1";
+    public string Tema { get; set; } = "#7c3aed";
     public int IdResponsavel { get; set; }
 
     public Responsavel? Responsavel { get; set; }

@@ -7,4 +7,5 @@ public interface IInventarioRepository
     Task<Inventario?> GetByUsuarioIdAsync(int idUsuario);
     Task AddAsync(Inventario inventario);
     Task UpdateAsync(Inventario inventario);
+    Task ComprarRecompensaAsync(int idUsuario, int idRecompensa);
 }

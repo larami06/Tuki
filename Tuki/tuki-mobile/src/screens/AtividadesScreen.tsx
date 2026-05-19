@@ -1,18 +1,20 @@
-import React from 'react';
-import { 
-  StyleSheet, 
-  Text, 
-  View, 
-  ScrollView, 
-  TouchableOpacity, 
-  SafeAreaView, 
+import React, { useEffect, useState } from 'react';
+import {
+  StyleSheet,
+  Text,
+  View,
+  ScrollView,
+  TouchableOpacity,
+  SafeAreaView,
   StatusBar,
   Image,
   Platform
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Book, Home as HomeIcon, ShoppingBag, User, Hash, BookOpen, Sparkles, Target, ChevronRight } from 'lucide-react-native';
+import { Book, Home as HomeIcon, ShoppingBag, User, Hash, BookOpen, Sparkles, Target, ChevronRight, Coins, Flame } from 'lucide-react-native';
 import { playSound } from '../services/sound';
+import { obterPerfilAtivo } from '../services/storage';
+import { buscarUsuarioPorId } from '../services/api';
 
 // Interface para tipagem dos cards de atividades
 interface ActivityCardProps {
@@ -26,6 +28,24 @@ interface ActivityCardProps {
 
 export default function AtividadesScreen() {
   const router = useRouter();
+  const [streakAtual, setStreakAtual] = useState(0);
+  const [moedas, setMoedas] = useState(0);
+
+  useEffect(() => {
+    const carregarPerfil = async () => {
+      const perfil = await obterPerfilAtivo();
+      if (perfil) {
+        setStreakAtual(perfil.streakAtual || 0);
+        setMoedas(perfil.moedas || 0);
+        try {
+          const atualizado = await buscarUsuarioPorId(perfil.id);
+          setStreakAtual(atualizado.streakAtual || 0);
+          setMoedas(atualizado.moedas || 0);
+        } catch {}
+      }
+    };
+    carregarPerfil();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -40,12 +60,12 @@ export default function AtividadesScreen() {
       {/* BARRA DE STATUS DE RECOMPENSAS (Gamificação no Topo) */}
       <View style={styles.statusBarRewards}>
         <View style={styles.rewardBadge}>
-          <Text style={styles.rewardIcon}>🔥</Text>
-          <Text style={styles.rewardText}>1</Text>
+          <Flame size={16} color="#F97316" fill="#F97316" />
+          <Text style={styles.rewardText}>{streakAtual}</Text>
         </View>
         <View style={[styles.rewardBadge, { backgroundColor: '#FEF3C7' }]}>
-          <Text style={styles.rewardIcon}>🪙</Text>
-          <Text style={styles.rewardText}>260</Text>
+          <Coins size={16} color="#EAB308" />
+          <Text style={[styles.rewardText, { color: '#854D0E' }]}>{moedas}</Text>
         </View>
       </View>
       
@@ -135,7 +155,7 @@ export default function AtividadesScreen() {
           <Book size={24} color="#7c3aed" />
           <Text style={[styles.navLabel, { color: '#7c3aed', fontWeight: 'bold' }]}>Atividades</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => playSound('click')}>
+        <TouchableOpacity style={styles.navItem} onPress={() => { playSound('click'); router.push('/loja' as any); }}>
           <ShoppingBag size={24} color="#6b7280" />
           <Text style={styles.navLabel}>Loja</Text>
         </TouchableOpacity>

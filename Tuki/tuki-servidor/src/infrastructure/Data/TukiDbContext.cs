@@ -38,6 +38,7 @@ public class TukiDbContext : DbContext
             e.Property(u => u.Nick).HasColumnName("nick").HasMaxLength(50).IsRequired();
             e.Property(u => u.Idade).HasColumnName("idade");
             e.Property(u => u.Avatar).HasColumnName("avatar").HasMaxLength(20).IsRequired();
+            e.Property(u => u.Tema).HasColumnName("tema").HasMaxLength(20);
             e.Property(u => u.IdResponsavel).HasColumnName("idresponsavel");
             e.HasIndex(u => u.Nick).IsUnique();
             e.HasOne(u => u.Responsavel)
@@ -70,6 +71,8 @@ public class TukiDbContext : DbContext
             e.Property(r => r.IdRecompensa).HasColumnName("idrecompensa");
             e.Property(r => r.Tipo).HasColumnName("tipo").HasMaxLength(50).IsRequired();
             e.Property(r => r.Valor).HasColumnName("valor").HasColumnType("numeric(10,2)");
+            e.Property(r => r.Nome).HasColumnName("nome").HasMaxLength(100);
+            e.Property(r => r.Identificador).HasColumnName("identificador").HasMaxLength(50);
         });
 
         modelBuilder.Entity<Licao>(e =>

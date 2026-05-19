@@ -57,4 +57,13 @@ public class UsuarioRepository : IUsuarioRepository
             .Where(u => u.IdResponsavel == responsavelId)
             .ToListAsync();
     }
+
+    public async Task<IEnumerable<Recompensa>> GetRecompensasAsync(int idUsuario)
+    {
+        return await _context.UsuariosRecompensas
+            .Where(ur => ur.IdUsuario == idUsuario)
+            .Include(ur => ur.Recompensa)
+            .Select(ur => ur.Recompensa!)
+            .ToListAsync();
+    }
 }

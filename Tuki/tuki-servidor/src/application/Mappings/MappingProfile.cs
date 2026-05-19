@@ -15,7 +15,7 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.LicoesConcluidas, opt => opt.MapFrom(src => src.Inventario != null ? src.Inventario.LicoesConcluidas : 0))
             .ForMember(dest => dest.StreakAtual, opt => opt.MapFrom(src => src.Inventario != null ? src.Inventario.StreakAtual : 0))
             .ForMember(dest => dest.XP, opt => opt.MapFrom(src => src.Inventario != null ? src.Inventario.XP : 0));
-            
+
         CreateMap<UsuarioCreateDto, Usuario>();
 
         CreateMap<Responsavel, ResponsavelResponseDto>()
@@ -26,6 +26,8 @@ public class MappingProfile : Profile
         CreateMap<Recompensa, RecompensaResponseDto>()
             .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.IdRecompensa));
         CreateMap<RecompensaCreateDto, Recompensa>();
+        CreateMap<UsuarioUpdateDto, Usuario>()
+            .ForAllMembers(opt => opt.Condition((src, dest, srcMember) => srcMember != null));
 
         CreateMap<Licao, LicaoResponseDto>()
             .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.IdLicao));

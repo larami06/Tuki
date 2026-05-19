@@ -55,4 +55,19 @@ public class UsuariosController : ControllerBase
             return BadRequest(new { message = "Responsável não encontrado." });
         }
     }
+
+    [HttpPut("{id}")]
+    public async Task<ActionResult<UsuarioResponseDto>> Update(int id, UsuarioUpdateDto dto)
+    {
+        var result = await _usuarioService.UpdateAsync(id, dto);
+        if (result == null) return NotFound();
+        return Ok(result);
+    }
+
+    [HttpGet("{id}/recompensas")]
+    public async Task<ActionResult<IEnumerable<RecompensaResponseDto>>> GetRecompensas(int id)
+    {
+        var result = await _usuarioService.GetRecompensasAsync(id);
+        return Ok(result);
+    }
 }

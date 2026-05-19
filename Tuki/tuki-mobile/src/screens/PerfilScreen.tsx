@@ -178,6 +178,9 @@ export default function PerfilScreen() {
             <Trophy size={24} color="#f59e0b" />
             <Text style={styles.sectionTitle}>Conquistas</Text>
           </View>
+          <TouchableOpacity style={styles.inventarioBtn} onPress={() => router.push('/inventario' as any)}>
+            <Text style={styles.inventarioBtnText}>🎒 Meu Inventário</Text>
+          </TouchableOpacity>
         </View>
 
       </ScrollView>
@@ -188,11 +191,11 @@ export default function PerfilScreen() {
           <Home size={24} color="#6b7280" />
           <Text style={styles.navLabel}>Início</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/atividades')}>
           <Book size={24} color="#6b7280" />
           <Text style={styles.navLabel}>Atividades</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/loja' as any)}>
           <ShoppingBag size={24} color="#6b7280" />
           <Text style={styles.navLabel}>Loja</Text>
         </TouchableOpacity>
@@ -369,6 +372,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6b7280',
     marginTop: 4,
+  },
+  inventarioBtn: {
+    backgroundColor: '#7c3aed',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 18,
+    alignItems: 'center',
+  },
+  inventarioBtnText: {
+    color: '#fff',
+    fontWeight: '900',
+    fontSize: 16,
   },
   logoutButton: {
     position: 'absolute',

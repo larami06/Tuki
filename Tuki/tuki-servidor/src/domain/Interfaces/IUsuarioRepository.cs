@@ -10,4 +10,5 @@ public interface IUsuarioRepository
     Task UpdateAsync(Usuario usuario);
     Task DeleteAsync(int id);
     Task<IEnumerable<Usuario>> GetByResponsavelIdAsync(int responsavelId);
+    Task<IEnumerable<Recompensa>> GetRecompensasAsync(int idUsuario);
 }

@@ -96,6 +96,16 @@ export default function RootLayout() {
         />
 
         <Stack.Screen
+          name="loja"
+          options={{ title: 'Tuki - Loja' }}
+        />
+
+        <Stack.Screen
+          name="inventario"
+          options={{ title: 'Tuki - Inventário' }}
+        />
+
+        <Stack.Screen
           name="modal"
           options={{
             presentation: 'modal',

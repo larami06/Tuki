@@ -30,4 +30,11 @@ public class InventarioService : IInventarioService
         inventario.Estrelas = dto.Estrelas;
         await _repository.UpdateAsync(inventario);
     }
+
+    public async Task<InventarioResponseDto> ComprarRecompensaAsync(int idUsuario, int idRecompensa)
+    {
+        await _repository.ComprarRecompensaAsync(idUsuario, idRecompensa);
+        var inventario = await _repository.GetByUsuarioIdAsync(idUsuario);
+        return _mapper.Map<InventarioResponseDto>(inventario!);
+    }
 }
