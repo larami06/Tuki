@@ -10,6 +10,7 @@ interface Usuario {
   nick: string;
   idade: number;
   avatar: string;
+  tema: string;
   moedas: number;
   estrelas: number;
   licoesConcluidas: number;
@@ -78,11 +79,11 @@ export default function PerfilScreen() {
   return (
     <SafeAreaView style={styles.container}>
 
-      <StatusBar barStyle="light-content" backgroundColor="#7c3aed" />
+      <StatusBar barStyle="light-content" backgroundColor={usuario?.tema || '#7c3aed'} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
-        {/* Cabeçalho Roxo */}
-        <View style={styles.header}>
+        {/* Cabeçalho */}
+        <View style={[styles.header, { backgroundColor: usuario?.tema || '#7c3aed' }]}>
 
           <TouchableOpacity style={styles.logoutButton} onPress={sair}>
             <LogOut size={22} color="#fff" />
