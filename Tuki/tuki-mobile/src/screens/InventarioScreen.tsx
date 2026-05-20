@@ -56,8 +56,8 @@ export default function InventarioScreen() {
     try {
       playSound('click');
       const dto = item.tipo === 'avatar'
-        ? { avatar: item.identificador }
-        : { tema: item.identificador };
+        ? { avatar: item.identificador, tema: temaAtual }
+        : { tema: item.identificador, avatar: avatarAtual };
 
       await atualizarUsuario(idUsuario, dto);
 

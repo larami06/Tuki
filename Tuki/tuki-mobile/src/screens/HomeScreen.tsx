@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Image, Platform } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { BookOpen, Star, Sparkles, Trophy, Flame, Coins, Target, Home as HomeIcon, Book, ShoppingBag, User, Bell, Play } from 'lucide-react-native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Image, Platform, Modal } from 'react-native';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { BookOpen, Star, Sparkles, Trophy, Flame, Coins, Target, CheckCircle, Home as HomeIcon, Book, ShoppingBag, User, Bell, Play } from 'lucide-react-native';
 import { obterPerfilAtivo, salvarPerfilAtivo } from '../services/storage';
 import { useAuth } from '../../app/hooks/useAuth';
-import { API_URL, buscarUsuarioPorId } from '../services/api';
+import { buscarUsuarioPorId, buscarProgressoDoUsuario } from '../services/api';
 import { playSound } from '../services/sound';
 
 interface Usuario {
@@ -28,8 +28,30 @@ const MISSION_LIST = [
 ];
 
 const HISTORIAS_MOCK = [
-  { id: 2, titulo: 'Aventuras na Floresta', cor: '#DCFCE7', img: require('../../assets/images/aventuras-floresta.png') },
-  { id: 3, titulo: 'O Mistério da Lua', cor: '#DBEAFE', img: require('../../assets/images/misterio-lua.png') },
+  {
+    id: 2,
+    idLicao: 10,
+    titulo: 'Aventuras na Floresta',
+    cor: '#DCFCE7',
+    img: require('../../assets/images/aventuras-floresta.png'),
+    emoji: '🌲',
+    teaser: 'Nino, o coelhinho curioso, encontrou um caminho secreto na floresta. Será que ele vai encontrar um novo amigo?',
+    recompensa: 15,
+    duracao: '5 páginas',
+    rota: '/historia-floresta',
+  },
+  {
+    id: 3,
+    idLicao: 11,
+    titulo: 'O Mistério da Lua',
+    cor: '#DBEAFE',
+    img: require('../../assets/images/misterio-lua.png'),
+    emoji: '🌙',
+    teaser: 'Bela fica curiosa sobre aquela bolinha brilhante no céu toda noite. Sua mamãe vai revelar um segredo mágico!',
+    recompensa: 15,
+    duracao: '5 páginas',
+    rota: '/historia-lua',
+  },
 ];
 
 const AVATARES_MAP: Record<string, any> = {
@@ -44,24 +66,33 @@ export default function HomeScreen() {
   const router = useRouter();
   const { nome: paramNome } = useLocalSearchParams();
   const [usuario, setUsuario] = useState<Usuario | null>(null);
+  const [historiaTeaser, setHistoriaTeaser] = useState<typeof HISTORIAS_MOCK[0] | null>(null);
+  const [historiaConcluidaModal, setHistoriaConcluidaModal] = useState<typeof HISTORIAS_MOCK[0] | null>(null);
+  const [historiasConcluidasIds, setHistoriasConcluidasIds] = useState<number[]>([]);
   const { loading } = useAuth();
 
   // Seleciona a missão baseada no dia do mês para ser a mesma o dia todo
   const dayIndex = new Date().getDate() % MISSION_LIST.length;
   const mission = MISSION_LIST[dayIndex];
-  
-  // Mock de progresso (em um app real viria do banco)
-  const currentProgress = 1; 
+  const missionProgress = Math.min(usuario?.licoesConcluidas || 0, mission.total);
+  const missionCompleted = missionProgress >= mission.total;
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     const carregarPerfil = async () => {
       const perfil = await obterPerfilAtivo();
       if (perfil) {
         setUsuario(perfil);
         try {
-          const perfilAtualizado = await buscarUsuarioPorId(perfil.id);
+          const [perfilAtualizado, progressos] = await Promise.all([
+            buscarUsuarioPorId(perfil.id),
+            buscarProgressoDoUsuario(perfil.id),
+          ]);
           setUsuario(perfilAtualizado);
           await salvarPerfilAtivo(perfilAtualizado);
+          const idsConcluidos = progressos
+            .filter(p => p.concluida)
+            .map(p => p.idLicao);
+          setHistoriasConcluidasIds(idsConcluidos);
         } catch (error) {
           console.error("Erro ao sincronizar perfil na HomeScreen:", error);
         }
@@ -71,7 +102,7 @@ export default function HomeScreen() {
     };
 
     carregarPerfil();
-  }, []);
+  }, [router]));
 
   if (loading) {
     return null;
@@ -127,26 +158,31 @@ export default function HomeScreen() {
         </View>
 
         {/* Missão do Dia */}
-        <View style={styles.missionCard}>
+        <View style={[styles.missionCard, missionCompleted && styles.missionCardCompleted]}>
           <View style={styles.missionHeader}>
-            <View style={styles.missionIconBox}>
-              <Target color="#FFF" size={24} />
+            <View style={[styles.missionIconBox, missionCompleted && styles.missionIconBoxCompleted]}>
+              {missionCompleted ? <CheckCircle color="#FFF" size={24} /> : <Target color="#FFF" size={24} />}
             </View>
             <View style={styles.missionInfo}>
-              <Text style={styles.missionTitle}>Missão do Dia</Text>
+              <Text style={[styles.missionTitle, missionCompleted && styles.missionTitleCompleted]}>
+                {missionCompleted ? 'Missão Concluída!' : 'Missão do Dia'}
+              </Text>
               <Text style={styles.missionDesc}>{mission.desc}</Text>
             </View>
-            <View style={styles.missionReward}>
-              <Coins color="#EAB308" size={16} />
-              <Text style={styles.rewardText}>+{mission.reward}</Text>
+            <View style={[styles.missionReward, missionCompleted && styles.missionRewardCompleted]}>
+              <Coins color={missionCompleted ? '#16A34A' : '#EAB308'} size={16} />
+              <Text style={[styles.rewardText, missionCompleted && styles.rewardTextCompleted]}>+{mission.reward}</Text>
             </View>
           </View>
-          
+
           <View style={styles.progressContainer}>
             <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${((usuario?.licoesConcluidas || 0) / mission.total) * 100}%` }]} />
+              <View style={[styles.progressFill, missionCompleted && styles.progressFillCompleted, { width: `${(missionProgress / mission.total) * 100}%` }]} />
             </View>
-            <Text style={styles.progressLabel}>{usuario?.licoesConcluidas || 0} / {mission.total}</Text>
+            {missionCompleted
+              ? <CheckCircle color="#22C55E" size={22} />
+              : <Text style={styles.progressLabel}>{missionProgress} / {mission.total}</Text>
+            }
           </View>
         </View>
 
@@ -166,21 +202,35 @@ export default function HomeScreen() {
           showsHorizontalScrollIndicator={false} 
           contentContainerStyle={styles.storiesCarousel}
         >
-          {HISTORIAS_MOCK.map((story) => (
-            <TouchableOpacity key={story.id} style={styles.storyCard}>
-              <View style={[styles.storyCover, { backgroundColor: story.cor }]}>
-                <Image 
-                  source={typeof story.img === 'string' ? { uri: story.img } : story.img} 
-                  style={styles.storyImage} 
-                  resizeMode="cover"
-                />
-                <View style={styles.storyBadge}>
-                  <Text style={styles.badgeText}>NOVO</Text>
+          {HISTORIAS_MOCK.map((story) => {
+            const concluida = historiasConcluidasIds.includes(story.idLicao);
+            return (
+              <TouchableOpacity
+                key={story.id}
+                style={styles.storyCard}
+                onPress={() => concluida ? setHistoriaConcluidaModal(story) : setHistoriaTeaser(story)}
+              >
+                <View style={[styles.storyCover, { backgroundColor: story.cor }, concluida && styles.storyCoverConcluida]}>
+                  <Image
+                    source={typeof story.img === 'string' ? { uri: story.img } : story.img}
+                    style={[styles.storyImage, concluida && { opacity: 0.6 }]}
+                    resizeMode="cover"
+                  />
+                  {concluida ? (
+                    <View style={styles.storyBadgeConcluida}>
+                      <CheckCircle size={14} color="#fff" />
+                      <Text style={styles.badgeConcluidaText}>CONCLUÍDA</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.storyBadge}>
+                      <Text style={styles.badgeText}>NOVO</Text>
+                    </View>
+                  )}
                 </View>
-              </View>
-              <Text style={styles.storyTitle} numberOfLines={1}>{story.titulo}</Text>
-            </TouchableOpacity>
-          ))}
+                <Text style={styles.storyTitle} numberOfLines={1}>{story.titulo}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
 
         <Text style={styles.sectionTitle}>Explore</Text>
@@ -204,6 +254,56 @@ export default function HomeScreen() {
           ))}
         </View>
       </ScrollView>
+
+      {/* Modal História Já Concluída */}
+      <Modal transparent animationType="slide" visible={historiaConcluidaModal !== null}>
+        {historiaConcluidaModal && (
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalBox, { backgroundColor: historiaConcluidaModal.cor }]}>
+              <Text style={styles.modalEmoji}>🏆</Text>
+              <Text style={styles.modalTitulo}>{historiaConcluidaModal.titulo}</Text>
+              <View style={[styles.modalMeta, { backgroundColor: 'rgba(34,197,94,0.15)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 14 }]}>
+                <CheckCircle size={18} color="#16A34A" />
+                <Text style={[styles.modalMetaText, { backgroundColor: 'transparent', color: '#16A34A' }]}>Você já concluiu esta história!</Text>
+              </View>
+              <Text style={styles.modalTeaser}>Você leu e respondeu a pergunta desta história. Muito bem! Explore outras aventuras.</Text>
+              <TouchableOpacity onPress={() => setHistoriaConcluidaModal(null)} style={[styles.modalBotaoComecar, { backgroundColor: '#22C55E' }]}>
+                <Text style={styles.modalBotaoComecarText}>Fechar ✅</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </Modal>
+
+      {/* Modal Teaser de História */}
+      <Modal transparent animationType="slide" visible={historiaTeaser !== null}>
+        {historiaTeaser && (
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalBox, { backgroundColor: historiaTeaser.cor }]}>
+              <Text style={styles.modalEmoji}>{historiaTeaser.emoji}</Text>
+              <Text style={styles.modalTitulo}>{historiaTeaser.titulo}</Text>
+              <View style={styles.modalMeta}>
+                <Text style={styles.modalMetaText}>📖 {historiaTeaser.duracao}</Text>
+                <Text style={styles.modalMetaText}>🪙 +{historiaTeaser.recompensa}</Text>
+              </View>
+              <Text style={styles.modalTeaser}>{historiaTeaser.teaser}</Text>
+              <TouchableOpacity
+                style={styles.modalBotaoComecar}
+                onPress={() => {
+                  const rota = historiaTeaser.rota;
+                  setHistoriaTeaser(null);
+                  router.push(rota as any);
+                }}
+              >
+                <Text style={styles.modalBotaoComecarText}>Começar aventura! 🚀</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setHistoriaTeaser(null)} style={styles.modalBotaoFechar}>
+                <Text style={styles.modalBotaoFecharText}>Agora não</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </Modal>
 
       <View style={styles.navBar}>
         <TouchableOpacity style={styles.navItem}>
@@ -421,6 +521,25 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#64748B',
   },
+  missionCardCompleted: {
+    borderColor: '#BBF7D0',
+    backgroundColor: '#F0FDF4',
+  },
+  missionIconBoxCompleted: {
+    backgroundColor: '#22C55E',
+  },
+  missionTitleCompleted: {
+    color: '#16A34A',
+  },
+  missionRewardCompleted: {
+    backgroundColor: '#DCFCE7',
+  },
+  rewardTextCompleted: {
+    color: '#16A34A',
+  },
+  progressFillCompleted: {
+    backgroundColor: '#22C55E',
+  },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -472,6 +591,27 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '900',
   },
+  storyCoverConcluida: {
+    borderWidth: 3,
+    borderColor: '#22C55E',
+  },
+  storyBadgeConcluida: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: '#22C55E',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  badgeConcluidaText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: '900',
+  },
   storyTitle: {
     fontSize: 14,
     fontWeight: '800',
@@ -518,4 +658,39 @@ const styles = StyleSheet.create({
   },
   navItem: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
   navLabel: { fontSize: 12, color: '#9CA3AF', marginTop: 6, fontWeight: '700' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalBox: {
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: 28,
+    paddingBottom: Platform.OS === 'ios' ? 44 : 28,
+    alignItems: 'center',
+    elevation: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+  },
+  modalEmoji: { fontSize: 64, marginBottom: 12 },
+  modalTitulo: { fontSize: 24, fontWeight: '900', color: '#1F2937', marginBottom: 10, textAlign: 'center' },
+  modalMeta: { flexDirection: 'row', gap: 20, marginBottom: 16 },
+  modalMetaText: { fontSize: 14, fontWeight: '700', color: '#4B5563', backgroundColor: 'rgba(255,255,255,0.6)', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 12 },
+  modalTeaser: { fontSize: 16, color: '#374151', textAlign: 'center', lineHeight: 24, marginBottom: 24, fontWeight: '500' },
+  modalBotaoComecar: {
+    backgroundColor: '#7C3AED',
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 20,
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 12,
+    elevation: 4,
+  },
+  modalBotaoComecarText: { color: '#fff', fontWeight: '900', fontSize: 17 },
+  modalBotaoFechar: { paddingVertical: 8 },
+  modalBotaoFecharText: { color: '#6B7280', fontWeight: '700', fontSize: 15 },
 });

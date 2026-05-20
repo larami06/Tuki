@@ -50,7 +50,14 @@ export default function LojaScreen() {
         buscarUsuarioPorId(perfil.id),
       ]);
 
-      setItens(todosItens.filter(i => i.tipo === 'avatar' || i.tipo === 'fundo'));
+      const filtrados = todosItens.filter(i => i.tipo === 'avatar' || i.tipo === 'fundo');
+      const vistos = new Set<string>();
+      const semDuplicatas = filtrados.filter(i => {
+        if (vistos.has(i.identificador)) return false;
+        vistos.add(i.identificador);
+        return true;
+      });
+      setItens(semDuplicatas);
       setAdquiridos(itensAdquiridos.map(i => i.id));
       setMoedas(perfilAtualizado.moedas || 0);
     } catch (e) {

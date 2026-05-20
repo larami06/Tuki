@@ -118,21 +118,58 @@ using (var scope = app.Services.CreateScope())
         context.SaveChanges();
     }
 
-    if (!context.Recompensas.Any())
+    // Remove duplicatas de recompensas pelo identificador (mantém o menor ID)
+    var recompensasDuplicadas = context.Recompensas
+        .AsEnumerable()
+        .GroupBy(r => r.Identificador)
+        .Where(g => g.Count() > 1)
+        .SelectMany(g => g.OrderBy(r => r.IdRecompensa).Skip(1))
+        .ToList();
+
+    if (recompensasDuplicadas.Count > 0)
     {
-        context.Recompensas.AddRange(
-            new Recompensa { IdRecompensa = 1, Tipo = "avatar", Valor = 50,  Nome = "Avatar Monstro",  Identificador = "avatar_2" },
-            new Recompensa { IdRecompensa = 2, Tipo = "avatar", Valor = 75,  Nome = "Avatar Robô",     Identificador = "avatar_3" },
-            new Recompensa { IdRecompensa = 3, Tipo = "avatar", Valor = 100, Nome = "Avatar Alien",    Identificador = "avatar_4" },
-            new Recompensa { IdRecompensa = 4, Tipo = "avatar", Valor = 150, Nome = "Avatar Dragão",   Identificador = "avatar_5" },
-            new Recompensa { IdRecompensa = 5, Tipo = "fundo",  Valor = 80,  Nome = "Fundo Rosa",      Identificador = "#ec4899" },
-            new Recompensa { IdRecompensa = 6, Tipo = "fundo",  Valor = 80,  Nome = "Fundo Verde",     Identificador = "#10b981" },
-            new Recompensa { IdRecompensa = 7, Tipo = "fundo",  Valor = 80,  Nome = "Fundo Azul",      Identificador = "#3b82f6" },
-            new Recompensa { IdRecompensa = 8, Tipo = "fundo",  Valor = 80,  Nome = "Fundo Laranja",   Identificador = "#f97316" },
-            new Recompensa { IdRecompensa = 9, Tipo = "fundo",  Valor = 80,  Nome = "Fundo Vermelho",  Identificador = "#ef4444" }
-        );
+        var idsDuplicados = recompensasDuplicadas.Select(r => r.IdRecompensa).ToList();
+        var refsDuplicadas = context.UsuariosRecompensas
+            .Where(ur => idsDuplicados.Contains(ur.IdRecompensa))
+            .ToList();
+        context.UsuariosRecompensas.RemoveRange(refsDuplicadas);
+        context.Recompensas.RemoveRange(recompensasDuplicadas);
         context.SaveChanges();
+        Console.WriteLine($"Seed: {recompensasDuplicadas.Count} recompensas duplicadas removidas.");
     }
+
+    // Seed canônico: garante que os 4 avatares + 5 fundos corretos existam
+    var recompensasCanônicas = new[]
+    {
+        new { Identificador = "avatar_2", Tipo = "avatar", Valor = 50m,  Nome = "Tuki Explorador" },
+        new { Identificador = "avatar_3", Tipo = "avatar", Valor = 100m, Nome = "Tuki Aventureiro" },
+        new { Identificador = "avatar_4", Tipo = "avatar", Valor = 150m, Nome = "Tuki Mestre"      },
+        new { Identificador = "avatar_5", Tipo = "avatar", Valor = 200m, Nome = "Tuki Lendário"    },
+        new { Identificador = "#ec4899",  Tipo = "fundo",  Valor = 80m,  Nome = "Fundo Rosa"       },
+        new { Identificador = "#10b981",  Tipo = "fundo",  Valor = 80m,  Nome = "Fundo Verde"      },
+        new { Identificador = "#3b82f6",  Tipo = "fundo",  Valor = 80m,  Nome = "Fundo Azul"       },
+        new { Identificador = "#f97316",  Tipo = "fundo",  Valor = 80m,  Nome = "Fundo Laranja"    },
+        new { Identificador = "#ef4444",  Tipo = "fundo",  Valor = 80m,  Nome = "Fundo Vermelho"   },
+    };
+
+    var identificadoresExistentes = context.Recompensas
+        .Select(r => r.Identificador)
+        .ToHashSet();
+
+    foreach (var r in recompensasCanônicas)
+    {
+        if (!identificadoresExistentes.Contains(r.Identificador))
+        {
+            context.Recompensas.Add(new Recompensa
+            {
+                Tipo = r.Tipo,
+                Valor = r.Valor,
+                Nome = r.Nome,
+                Identificador = r.Identificador,
+            });
+        }
+    }
+    context.SaveChanges();
 
     if (!context.Licoes.Any())
     {
@@ -143,9 +180,55 @@ using (var scope = app.Services.CreateScope())
             new Licao { IdLicao = 4, Conteudo = "Palavras Curtas", NivelDificuldade = "Medio", TipoLicao = "Alfabetização", IdadeMinima = 5, IdadeMaxima = 9 },
             new Licao { IdLicao = 5, Conteudo = "Frases Divertidas", NivelDificuldade = "Dificil", TipoLicao = "Alfabetização", IdadeMinima = 6, IdadeMaxima = 10 },
             new Licao { IdLicao = 6, Conteudo = "Pequenos Contos", NivelDificuldade = "Dificil", TipoLicao = "Alfabetização", IdadeMinima = 6, IdadeMaxima = 10 },
-            new Licao { IdLicao = 7, Conteudo = "Desafio Final", NivelDificuldade = "Dificil", TipoLicao = "Alfabetização", IdadeMinima = 7, IdadeMaxima = 11 }
+            new Licao { IdLicao = 7, Conteudo = "Desafio Final", NivelDificuldade = "Dificil", TipoLicao = "Alfabetização", IdadeMinima = 7, IdadeMaxima = 11 },
+            new Licao { IdLicao = 10, Conteudo = "Aventuras na Floresta", NivelDificuldade = "Facil", TipoLicao = "Historias", IdadeMinima = 4, IdadeMaxima = 8 },
+            new Licao { IdLicao = 11, Conteudo = "O Misterio da Lua", NivelDificuldade = "Facil", TipoLicao = "Historias", IdadeMinima = 4, IdadeMaxima = 8 }
         );
         context.SaveChanges();
+    }
+
+    // Garante que todas as lições novas existam mesmo em bancos já populados
+    var licoesNovas = new (int Id, string Conteudo, string Nivel, string Tipo, int IdMin, int IdMax)[]
+    {
+        (10, "Aventuras na Floresta",  "Facil",  "Historias",   4, 8),
+        (11, "O Misterio da Lua",      "Facil",  "Historias",   4, 8),
+        // Trilha de Histórias
+        (20, "O Pequeno Tuki",         "Facil",  "Historias",   4, 8),
+        (21, "Reino das Cores",        "Facil",  "Historias",   4, 8),
+        (22, "Amigos da Floresta",     "Facil",  "Historias",   4, 8),
+        (23, "Viagem ao Mar",          "Medio",  "Historias",   5, 9),
+        (24, "Dragao Amigavel",        "Medio",  "Historias",   5, 9),
+        (25, "Noite Estrelada",        "Dificil","Historias",   6, 10),
+        (26, "Festa no Castelo",       "Dificil","Historias",   6, 10),
+        // Trilha de Matemática
+        (30, "Contando Estrelas",      "Facil",  "Matematica",  4, 8),
+        (31, "Soma Espacial",          "Facil",  "Matematica",  4, 8),
+        (32, "Subtracao Lunar",        "Medio",  "Matematica",  5, 9),
+        (33, "Formas Geometricas",     "Medio",  "Matematica",  5, 9),
+        (34, "Maior ou Menor",         "Medio",  "Matematica",  5, 9),
+        (35, "Logica Alienigena",      "Dificil","Matematica",  6, 10),
+        (36, "Mestre da Galaxia",      "Dificil","Matematica",  7, 11),
+    };
+
+    var existentes = context.Licoes.Select(l => l.IdLicao).ToHashSet();
+    var paraAdicionar = licoesNovas
+        .Where(l => !existentes.Contains(l.Id))
+        .Select(l => new Licao
+        {
+            IdLicao = l.Id,
+            Conteudo = l.Conteudo,
+            NivelDificuldade = l.Nivel,
+            TipoLicao = l.Tipo,
+            IdadeMinima = l.IdMin,
+            IdadeMaxima = l.IdMax,
+        })
+        .ToList();
+
+    if (paraAdicionar.Count > 0)
+    {
+        context.Licoes.AddRange(paraAdicionar);
+        context.SaveChanges();
+        Console.WriteLine($"Seed: {paraAdicionar.Count} lições novas adicionadas.");
     }
 }
 

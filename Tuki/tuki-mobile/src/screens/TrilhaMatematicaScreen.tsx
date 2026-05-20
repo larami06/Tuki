@@ -1,21 +1,52 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { ChevronLeft, Star, Lock, Play, Rocket } from 'lucide-react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { obterPerfilAtivo } from '../services/storage';
+import { buscarProgressoDoUsuario } from '../services/api';
 
-const LEVELS = [
-  { id: 1, title: 'Contando Estrelas', status: 'completed', icon: 'numeric', color: '#6366f1' },
-  { id: 2, title: 'Soma Espacial', status: 'completed', icon: 'plus-circle', color: '#a855f7' },
-  { id: 3, title: 'Subtração Lunar', status: 'current', icon: 'minus-circle', color: '#ec4899' },
-  { id: 4, title: 'Formas Geométricas', status: 'locked', icon: 'shape', color: '#3b82f6' },
-  { id: 5, title: 'Maior ou Menor?', status: 'locked', icon: 'scale-balance', color: '#10b981' },
-  { id: 6, title: 'Lógica Alienígena', status: 'locked', icon: 'alien', color: '#f59e0b' },
-  { id: 7, title: 'Mestre da Galáxia', status: 'locked', icon: 'rocket-launch', color: '#ef4444' },
+const BASE_LEVELS = [
+  { idLicao: 30, title: 'Contando Estrelas',   icon: 'numeric',          color: '#6366f1', route: null },
+  { idLicao: 31, title: 'Soma Espacial',        icon: 'plus-circle',      color: '#a855f7', route: null },
+  { idLicao: 32, title: 'Subtração Lunar',      icon: 'minus-circle',     color: '#ec4899', route: null },
+  { idLicao: 33, title: 'Formas Geométricas',   icon: 'shape',            color: '#3b82f6', route: null },
+  { idLicao: 34, title: 'Maior ou Menor?',      icon: 'scale-balance',    color: '#10b981', route: null },
+  { idLicao: 35, title: 'Lógica Alienígena',    icon: 'alien',            color: '#f59e0b', route: null },
+  { idLicao: 36, title: 'Mestre da Galáxia',    icon: 'rocket-launch',    color: '#ef4444', route: null },
 ];
 
 export default function TrilhaMatematicaScreen() {
   const router = useRouter();
+  const [completedIds, setCompletedIds] = useState<number[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const fetchProgress = async () => {
+        try {
+          const perfil = await obterPerfilAtivo();
+          if (perfil) {
+            const progresso = await buscarProgressoDoUsuario(perfil.id);
+            const concluidas = progresso.filter(p => p.concluida).map(p => p.idLicao);
+            setCompletedIds(concluidas);
+          }
+        } catch (e) {
+          console.error('Erro ao buscar progresso:', e);
+        }
+      };
+      fetchProgress();
+    }, [])
+  );
+
+  const levels = BASE_LEVELS.map((level, idx) => {
+    const concluido = completedIds.includes(level.idLicao);
+    const anterior = idx === 0 || completedIds.includes(BASE_LEVELS[idx - 1].idLicao);
+    const status = concluido ? 'completed' : anterior ? 'current' : 'locked';
+    return { ...level, status };
+  });
+
+  const total = levels.length;
+  const concluidos = levels.filter(l => l.status === 'completed').length;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -28,47 +59,63 @@ export default function TrilhaMatematicaScreen() {
           <Text style={styles.subtitle}>Aventura Espacial 🚀</Text>
         </View>
         <View style={styles.statsHeader}>
-          <Rocket size={20} color="#fbbf24" fill="#fbbf24" />
-          <Text style={styles.statsText}>Nível 3</Text>
+          <Rocket size={18} color="#fbbf24" fill="#fbbf24" />
+          <Text style={styles.statsText}>{concluidos}/{total}</Text>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.trailContainer}>
-          {LEVELS.map((level, index) => {
+          {levels.map((level, index) => {
             const isRight = index % 2 !== 0;
             const isLocked = level.status === 'locked';
             const isCurrent = level.status === 'current';
+            const isCompleted = level.status === 'completed';
 
             return (
-              <View key={level.id} style={[styles.levelWrapper, { alignSelf: isRight ? 'flex-end' : 'flex-start' }]}>
-                <TouchableOpacity 
+              <View key={level.idLicao} style={[styles.levelWrapper, { alignSelf: isRight ? 'flex-end' : 'flex-start' }]}>
+                <TouchableOpacity
                   style={[
-                    styles.levelButton, 
+                    styles.levelButton,
                     { backgroundColor: isLocked ? '#334155' : level.color },
-                    isCurrent && styles.currentLevel
+                    isCurrent && styles.currentLevel,
+                    isCompleted && styles.completedLevel,
                   ]}
-                  disabled={isLocked}
+                  disabled={isLocked || (!level.route && !isCompleted)}
+                  onPress={() => {
+                    if (level.route) router.push(level.route as any);
+                  }}
                 >
                   {isLocked ? (
                     <Lock size={24} color="#64748b" />
                   ) : (
                     <MaterialCommunityIcons name={level.icon as any} size={42} color="#fff" />
                   )}
-                  
-                  {isCurrent && (
+
+                  {isCurrent && !level.route && (
+                    <View style={styles.emBreve}>
+                      <Text style={styles.emBreveText}>Em breve</Text>
+                    </View>
+                  )}
+                  {isCurrent && level.route && (
                     <View style={styles.playBadge}>
                       <Play size={12} color="#fff" fill="#fff" />
                     </View>
                   )}
+                  {isCompleted && (
+                    <View style={styles.checkBadge}>
+                      <Star size={14} color="#fff" fill="#fff" />
+                    </View>
+                  )}
                 </TouchableOpacity>
-                
+
                 <View style={styles.levelInfo}>
                   <Text style={[styles.levelTitle, isLocked && styles.lockedText]}>
                     {level.title}
                   </Text>
-                  {level.status === 'completed' && (
+                  {isCompleted && (
                     <View style={styles.completedStars}>
+                      <Star size={12} color="#fbbf24" fill="#fbbf24" />
                       <Star size={12} color="#fbbf24" fill="#fbbf24" />
                       <Star size={12} color="#fbbf24" fill="#fbbf24" />
                     </View>
@@ -109,12 +156,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
+    gap: 6,
   },
-  statsText: { color: '#fff', fontWeight: 'bold', marginLeft: 5 },
+  statsText: { color: '#fff', fontWeight: 'bold' },
   scrollContent: { padding: 30, paddingBottom: 100 },
-  trailContainer: {
-    paddingHorizontal: 20,
-  },
+  trailContainer: { paddingHorizontal: 20 },
   levelWrapper: {
     marginBottom: 50,
     alignItems: 'center',
@@ -139,7 +185,10 @@ const styles = StyleSheet.create({
     borderWidth: 6,
     transform: [{ scale: 1.15 }],
   },
-  levelEmoji: { fontSize: 36 },
+  completedLevel: {
+    borderColor: '#22C55E',
+    borderWidth: 5,
+  },
   playBadge: {
     position: 'absolute',
     top: -5,
@@ -150,6 +199,30 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#fff',
   },
+  checkBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: '#22C55E',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  emBreve: {
+    position: 'absolute',
+    bottom: -8,
+    backgroundColor: '#f59e0b',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  emBreveText: { color: '#fff', fontSize: 9, fontWeight: '900' },
   levelInfo: {
     marginTop: 12,
     alignItems: 'center',
@@ -161,9 +234,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   lockedText: { color: '#475569' },
-  completedStars: {
-    flexDirection: 'row',
-    marginTop: 4,
-    gap: 2,
-  }
+  completedStars: { flexDirection: 'row', marginTop: 4, gap: 2 },
 });
