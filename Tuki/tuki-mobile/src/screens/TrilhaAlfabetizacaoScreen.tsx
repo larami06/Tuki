@@ -9,11 +9,11 @@ import { buscarProgressoDoUsuario } from '../services/api';
 const BASE_LEVELS = [
   { id: 1, title: 'Vogais Mágicas', icon: 'format-letter-case', color: '#ff6b6b', route: '/vogais-magicas' },
   { id: 2, title: 'Encontro de Sons', icon: 'account-voice', color: '#4ecdc4', route: '/encontro-sons' },
-  { id: 3, title: 'Família do B e C', icon: 'bee', color: '#45b7d1' },
-  { id: 4, title: 'Palavras Curtas', icon: 'pencil', color: '#96ceb4' },
-  { id: 5, title: 'Frases Divertidas', icon: 'balloon', color: '#ffeead' },
-  { id: 6, title: 'Pequenos Contos', icon: 'book-open-page-variant', color: '#ffcc5c' },
-  { id: 7, title: 'Desafio Final', icon: 'trophy', color: '#ff6f69' },
+  { id: 3, title: 'Família do B e C', icon: 'bee', color: '#45b7d1', route: '/familia-b-c' },
+  { id: 4, title: 'Palavras Curtas', icon: 'pencil', color: '#96ceb4', route: '/palavras-curtas' },
+  { id: 5, title: 'Frases Divertidas', icon: 'balloon', color: '#ffeead', route: '/frases-divertidas' },
+  { id: 6, title: 'Pequenos Contos', icon: 'book-open-page-variant', color: '#ffcc5c', route: '/pequenos-contos' },
+  { id: 7, title: 'Desafio Final', icon: 'trophy', color: '#ff6f69', route: '/desafio-final-alfabetizacao' },
 ];
 
 export default function TrilhaAlfabetizacaoScreen() {

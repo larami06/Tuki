@@ -96,6 +96,13 @@ export default function RootLayout() {
         />
 
         <Stack.Screen
+          name="familia-b-c"
+          options={{
+            title: 'Tuki - Família do B e C',
+          }}
+        />
+
+        <Stack.Screen
           name="loja"
           options={{ title: 'Tuki - Loja' }}
         />

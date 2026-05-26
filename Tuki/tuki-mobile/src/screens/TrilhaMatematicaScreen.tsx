@@ -7,13 +7,13 @@ import { obterPerfilAtivo } from '../services/storage';
 import { buscarProgressoDoUsuario } from '../services/api';
 
 const BASE_LEVELS = [
-  { idLicao: 30, title: 'Contando Estrelas',   icon: 'numeric',          color: '#6366f1', route: null },
-  { idLicao: 31, title: 'Soma Espacial',        icon: 'plus-circle',      color: '#a855f7', route: null },
-  { idLicao: 32, title: 'Subtração Lunar',      icon: 'minus-circle',     color: '#ec4899', route: null },
-  { idLicao: 33, title: 'Formas Geométricas',   icon: 'shape',            color: '#3b82f6', route: null },
-  { idLicao: 34, title: 'Maior ou Menor?',      icon: 'scale-balance',    color: '#10b981', route: null },
-  { idLicao: 35, title: 'Lógica Alienígena',    icon: 'alien',            color: '#f59e0b', route: null },
-  { idLicao: 36, title: 'Mestre da Galáxia',    icon: 'rocket-launch',    color: '#ef4444', route: null },
+  { idLicao: 30, title: 'Contando Estrelas', icon: 'numeric', color: '#6366f1', route: '/contando-estrelas' },
+  { idLicao: 31, title: 'Soma Espacial', icon: 'plus-circle', color: '#a855f7', route: '/soma-espacial' },
+  { idLicao: 32, title: 'Subtração Lunar', icon: 'minus-circle', color: '#ec4899', route: '/subtracao-lunar' },
+  { idLicao: 33, title: 'Formas Geométricas', icon: 'shape', color: '#3b82f6', route: '/formas-geometricas' },
+  { idLicao: 34, title: 'Maior ou Menor?', icon: 'scale-balance', color: '#10b981', route: '/maior-ou-menor' },
+  { idLicao: 35, title: 'Lógica Alienígena', icon: 'alien', color: '#f59e0b', route: '/logica-alienigena' },
+  { idLicao: 36, title: 'Mestre da Galáxia', icon: 'rocket-launch', color: '#ef4444', route: '/mestre-da-galaxia' },
 ];
 
 export default function TrilhaMatematicaScreen() {
@@ -45,9 +45,6 @@ export default function TrilhaMatematicaScreen() {
     return { ...level, status };
   });
 
-  const total = levels.length;
-  const concluidos = levels.filter(l => l.status === 'completed').length;
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -60,59 +57,57 @@ export default function TrilhaMatematicaScreen() {
         </View>
         <View style={styles.statsHeader}>
           <Rocket size={18} color="#fbbf24" fill="#fbbf24" />
-          <Text style={styles.statsText}>{concluidos}/{total}</Text>
+          <Text style={styles.statsText}>{completedIds.length}/{BASE_LEVELS.length}</Text>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.trailContainer}>
           {levels.map((level, index) => {
-            const isRight = index % 2 !== 0;
+            const isLeft = index % 2 === 0;
             const isLocked = level.status === 'locked';
             const isCurrent = level.status === 'current';
             const isCompleted = level.status === 'completed';
 
             return (
-              <View key={level.idLicao} style={[styles.levelWrapper, { alignSelf: isRight ? 'flex-end' : 'flex-start' }]}>
+              <View key={level.idLicao} style={[styles.levelWrapper, { alignSelf: isLeft ? 'flex-start' : 'flex-end' }]}>
+
+                {/* Conector Visual */}
+                {index > 0 && (
+                  <View style={[
+                    styles.connector,
+                    {
+                      left: isLeft ? 55 : -35,
+                      transform: [{ rotate: isLeft ? '-20deg' : '20deg' }]
+                    }
+                  ]} />
+                )}
+
                 <TouchableOpacity
                   style={[
                     styles.levelButton,
-                    { backgroundColor: isLocked ? '#334155' : level.color },
+                    { backgroundColor: isLocked ? '#1e293b' : level.color },
                     isCurrent && styles.currentLevel,
-                    isCompleted && styles.completedLevel,
+                    isCompleted && styles.completedLevel
                   ]}
-                  disabled={isLocked || (!level.route && !isCompleted)}
-                  onPress={() => {
-                    if (level.route) router.push(level.route as any);
-                  }}
+                  disabled={isLocked}
+                  onPress={() => { if (level.route) router.push(level.route as any); }}
                 >
                   {isLocked ? (
-                    <Lock size={24} color="#64748b" />
+                    <Lock size={28} color="#475569" />
                   ) : (
                     <MaterialCommunityIcons name={level.icon as any} size={42} color="#fff" />
                   )}
 
-                  {isCurrent && !level.route && (
-                    <View style={styles.emBreve}>
-                      <Text style={styles.emBreveText}>Em breve</Text>
-                    </View>
-                  )}
-                  {isCurrent && level.route && (
+                  {isCurrent && !isLocked && (
                     <View style={styles.playBadge}>
                       <Play size={12} color="#fff" fill="#fff" />
-                    </View>
-                  )}
-                  {isCompleted && (
-                    <View style={styles.checkBadge}>
-                      <Star size={14} color="#fff" fill="#fff" />
                     </View>
                   )}
                 </TouchableOpacity>
 
                 <View style={styles.levelInfo}>
-                  <Text style={[styles.levelTitle, isLocked && styles.lockedText]}>
-                    {level.title}
-                  </Text>
+                  <Text style={[styles.levelTitle, isLocked && styles.lockedText]}>{level.title}</Text>
                   {isCompleted && (
                     <View style={styles.completedStars}>
                       <Star size={12} color="#fbbf24" fill="#fbbf24" />
@@ -140,99 +135,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
+    elevation: 5,
   },
-  backButton: {
-    padding: 8,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 12,
-  },
+  backButton: { padding: 8, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 12 },
   headerTextContainer: { flex: 1, marginLeft: 15 },
   title: { color: '#fff', fontSize: 22, fontWeight: 'bold' },
   subtitle: { color: '#bfdbfe', fontSize: 14 },
   statsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 6,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.2)',
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
   },
-  statsText: { color: '#fff', fontWeight: 'bold' },
+  statsText: { color: '#fff', fontWeight: 'bold', marginLeft: 5 },
   scrollContent: { padding: 30, paddingBottom: 100 },
   trailContainer: { paddingHorizontal: 20 },
-  levelWrapper: {
-    marginBottom: 50,
-    alignItems: 'center',
-    width: '50%',
-  },
+  levelWrapper: { marginBottom: 40, alignItems: 'center', width: '55%' },
   levelButton: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 8,
-    shadowColor: '#3b82f6',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    borderWidth: 5,
-    borderColor: 'rgba(255,255,255,0.1)',
+    width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center',
+    elevation: 6, borderWidth: 4, borderColor: 'rgba(255,255,255,0.1)',
   },
-  currentLevel: {
-    borderColor: '#fbbf24',
-    borderWidth: 6,
-    transform: [{ scale: 1.15 }],
-  },
-  completedLevel: {
-    borderColor: '#22C55E',
-    borderWidth: 5,
-  },
+  currentLevel: { borderWidth: 6, borderColor: '#fff', transform: [{ scale: 1.15 }] },
+  completedLevel: { borderColor: '#22c55e', borderWidth: 4 },
   playBadge: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
-    backgroundColor: '#f59e0b',
-    padding: 6,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#fff',
+    position: 'absolute', bottom: -5, right: -5, backgroundColor: '#3b82f6',
+    padding: 6, borderRadius: 12, borderWidth: 2, borderColor: '#fff',
   },
-  checkBadge: {
-    position: 'absolute',
-    top: -6,
-    right: -6,
-    backgroundColor: '#22C55E',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  emBreve: {
-    position: 'absolute',
-    bottom: -8,
-    backgroundColor: '#f59e0b',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  emBreveText: { color: '#fff', fontSize: 9, fontWeight: '900' },
-  levelInfo: {
-    marginTop: 12,
-    alignItems: 'center',
-  },
-  levelTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#f1f5f9',
-    textAlign: 'center',
-  },
+  levelInfo: { marginTop: 10, alignItems: 'center' },
+  levelTitle: { fontSize: 14, fontWeight: 'bold', color: '#e2e8f0', textAlign: 'center' },
   lockedText: { color: '#475569' },
   completedStars: { flexDirection: 'row', marginTop: 4, gap: 2 },
+  connector: {
+    position: 'absolute', top: -35, width: 4, height: 50, backgroundColor: '#334155', zIndex: -1,
+  }
 });
