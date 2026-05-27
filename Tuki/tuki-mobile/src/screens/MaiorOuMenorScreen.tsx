@@ -61,7 +61,7 @@ export default function MaiorOuMenorScreen() {
                 }
             }, 1200);
         } else {
-            playSound('error');
+            playSound('wrong');
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             onError();
             setTimeout(() => { setDisabled(false); }, 800);

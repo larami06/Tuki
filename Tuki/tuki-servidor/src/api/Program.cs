@@ -141,10 +141,10 @@ using (var scope = app.Services.CreateScope())
     // Seed canônico: garante que os 4 avatares + 5 fundos corretos existam
     var recompensasCanônicas = new[]
     {
-        new { Identificador = "avatar_2", Tipo = "avatar", Valor = 50m,  Nome = "Tuki Explorador" },
-        new { Identificador = "avatar_3", Tipo = "avatar", Valor = 100m, Nome = "Tuki Aventureiro" },
-        new { Identificador = "avatar_4", Tipo = "avatar", Valor = 150m, Nome = "Tuki Mestre"      },
-        new { Identificador = "avatar_5", Tipo = "avatar", Valor = 200m, Nome = "Tuki Lendário"    },
+        new { Identificador = "avatar_2", Tipo = "avatar", Valor = 50m,  Nome = "Friofelino" },
+        new { Identificador = "avatar_3", Tipo = "avatar", Valor = 100m, Nome = "Glub-bu" },
+        new { Identificador = "avatar_4", Tipo = "avatar", Valor = 150m, Nome = "Maçaneta"},
+        new { Identificador = "avatar_5", Tipo = "avatar", Valor = 200m, Nome = "Jaré"},
         new { Identificador = "#ec4899",  Tipo = "fundo",  Valor = 80m,  Nome = "Fundo Rosa"       },
         new { Identificador = "#10b981",  Tipo = "fundo",  Valor = 80m,  Nome = "Fundo Verde"      },
         new { Identificador = "#3b82f6",  Tipo = "fundo",  Valor = 80m,  Nome = "Fundo Azul"       },
