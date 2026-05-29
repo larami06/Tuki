@@ -6,194 +6,245 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Dimensions,
-  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, ShieldCheck } from 'lucide-react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
   withSpring,
   withSequence,
-  withRepeat,
   Easing,
-  FadeIn,
   ZoomIn,
   BounceIn,
-  runOnJS,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { playSound } from '../services/sound';
-import ConfettiEffect from '../components/ConfettiEffect';
-import { obterPerfilAtivo, salvarPerfilAtivo } from '../services/storage';
-import { registrarProgresso, buscarUsuarioPorId } from '../services/api';
+import { useGameCompletion } from '../hooks/useGameCompletion';
+import GameCompletionModal from '../components/GameCompletionModal';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-// ─── Mission types ──────────────────────────────────────────────────────────
-interface FallingItem {
+// ─── Tipos ────────────────────────────────────────────────────────────────────
+interface Circle {
   id: string;
-  emoji: string;
   label: string;
+  color: string;
+  bgColor: string;
   isCorrect: boolean;
   x: number;
-  delay: number;
+  size: number;
 }
 
 interface Mission {
-  instruction: string;
-  items: Omit<FallingItem, 'id' | 'x' | 'delay'>[];
+  title: string;
+  subtitle: string;
+  emoji: string;
   requiredCorrect: number;
+  spawnInterval: number;  // ms entre novos círculos
+  fallDuration: number;   // ms para cair da topo ao fundo
+  cometDuration: number;  // ms até a barra cheia (tempo de "respiro")
+  generateCircle: (idx: number) => Omit<Circle, 'id' | 'x' | 'size'>;
 }
 
+// ─── Cores ────────────────────────────────────────────────────────────────────
+const C = {
+  green:  { fg: '#4ade80', bg: '#052e16' },
+  blue:   { fg: '#60a5fa', bg: '#0c1a3a' },
+  red:    { fg: '#f87171', bg: '#2a0a0a' },
+  yellow: { fg: '#fbbf24', bg: '#292000' },
+  purple: { fg: '#c084fc', bg: '#1a0030' },
+  pink:   { fg: '#f472b6', bg: '#2a0015' },
+  teal:   { fg: '#2dd4bf', bg: '#002020' },
+} as const;
+
+type CK = keyof typeof C;
+
+// ─── Missões ──────────────────────────────────────────────────────────────────
 const MISSIONS: Mission[] = [
   {
-    instruction: 'Toque em todos os CÍRCULOS! ⭕',
-    items: [
-      { emoji: '⭕', label: 'círculo', isCorrect: true },
-      { emoji: '⭕', label: 'círculo', isCorrect: true },
-      { emoji: '⭕', label: 'círculo', isCorrect: true },
-      { emoji: '🔺', label: 'triângulo', isCorrect: false },
-      { emoji: '🟥', label: 'quadrado', isCorrect: false },
-      { emoji: '🔺', label: 'triângulo', isCorrect: false },
-      { emoji: '⭕', label: 'círculo', isCorrect: true },
-      { emoji: '🟥', label: 'quadrado', isCorrect: false },
-    ],
+    title: 'Toque nos círculos VERDES!',
+    subtitle: 'Só os verdes salvam a base 🟢',
+    emoji: '🟢',
     requiredCorrect: 4,
+    spawnInterval: 2200,   // 1 círculo a cada 2.2s — tempo confortável
+    fallDuration: 7000,    // 7s para cair — criança tem tempo de reagir
+    cometDuration: 22000,  // cometa demora 22s — missão leva ~9s mínimo
+    generateCircle: (idx) => {
+      const pool: CK[] = ['green', 'red', 'blue', 'yellow', 'green', 'purple', 'green', 'red', 'green', 'blue'];
+      const ck = pool[idx % pool.length];
+      const emoji = ({ green: '🟢', red: '🔴', blue: '🔵', yellow: '🟡', purple: '🟣', pink: '🩷', teal: '🩵' } as any)[ck] ?? '⚪';
+      return { label: emoji, color: C[ck].fg, bgColor: C[ck].bg, isCorrect: ck === 'green' };
+    },
   },
   {
-    instruction: 'Toque nas somas que dão 5! 🌟',
-    items: [
-      { emoji: '2+3', label: 'soma5', isCorrect: true },
-      { emoji: '1+4', label: 'soma5', isCorrect: true },
-      { emoji: '3+3', label: 'soma6', isCorrect: false },
-      { emoji: '4+1', label: 'soma5', isCorrect: true },
-      { emoji: '2+2', label: 'soma4', isCorrect: false },
-      { emoji: '1+1', label: 'soma2', isCorrect: false },
-      { emoji: '3+2', label: 'soma5', isCorrect: true },
-      { emoji: '5+1', label: 'soma6', isCorrect: false },
-    ],
+    title: 'Toque nos números ÍMPARES!',
+    subtitle: '1, 3, 5, 7, 9 são seus aliados 🔢',
+    emoji: '🔢',
     requiredCorrect: 4,
+    spawnInterval: 2000,
+    fallDuration: 6500,
+    cometDuration: 20000,
+    generateCircle: (idx) => {
+      const nums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+      const n = nums[idx % nums.length];
+      const ok = n % 2 !== 0;
+      return { label: String(n), color: ok ? C.teal.fg : C.red.fg, bgColor: ok ? C.teal.bg : C.red.bg, isCorrect: ok };
+    },
   },
   {
-    instruction: 'Toque em todos os TRIÂNGULOS! 🔺',
-    items: [
-      { emoji: '🔺', label: 'triângulo', isCorrect: true },
-      { emoji: '⭕', label: 'círculo', isCorrect: false },
-      { emoji: '🔺', label: 'triângulo', isCorrect: true },
-      { emoji: '🟥', label: 'quadrado', isCorrect: false },
-      { emoji: '🔺', label: 'triângulo', isCorrect: true },
-      { emoji: '⭕', label: 'círculo', isCorrect: false },
-      { emoji: '🟥', label: 'quadrado', isCorrect: false },
-      { emoji: '🔺', label: 'triângulo', isCorrect: true },
-    ],
+    title: 'Toque nas somas que dão 5!',
+    subtitle: '2+3? 1+4? Toque rápido! ⭐',
+    emoji: '⭐',
     requiredCorrect: 4,
+    spawnInterval: 2000,
+    fallDuration: 6000,
+    cometDuration: 20000,
+    generateCircle: (idx) => {
+      const exprs = [
+        { label: '2+3', ok: true }, { label: '3+3', ok: false },
+        { label: '1+4', ok: true }, { label: '2+2', ok: false },
+        { label: '4+1', ok: true }, { label: '5+1', ok: false },
+        { label: '0+5', ok: true }, { label: '3+2', ok: true },
+        { label: '1+1', ok: false }, { label: '4+2', ok: false },
+      ];
+      const e = exprs[idx % exprs.length];
+      return { label: e.label, color: e.ok ? C.yellow.fg : C.pink.fg, bgColor: e.ok ? C.yellow.bg : C.pink.bg, isCorrect: e.ok };
+    },
   },
   {
-    instruction: 'Toque nas somas que dão 3! ⭐',
-    items: [
-      { emoji: '1+2', label: 'soma3', isCorrect: true },
-      { emoji: '2+2', label: 'soma4', isCorrect: false },
-      { emoji: '0+3', label: 'soma3', isCorrect: true },
-      { emoji: '3+1', label: 'soma4', isCorrect: false },
-      { emoji: '2+1', label: 'soma3', isCorrect: true },
-      { emoji: '1+1', label: 'soma2', isCorrect: false },
-      { emoji: '3+0', label: 'soma3', isCorrect: true },
-      { emoji: '4+1', label: 'soma5', isCorrect: false },
-    ],
+    title: 'Toque nos maiores que 5!',
+    subtitle: '6, 7, 8, 9, 10 — vai lá! 🚀',
+    emoji: '🚀',
     requiredCorrect: 4,
+    spawnInterval: 1900,
+    fallDuration: 5800,
+    cometDuration: 19000,
+    generateCircle: (idx) => {
+      const nums = [2, 7, 4, 9, 3, 6, 1, 8, 5, 10];
+      const n = nums[idx % nums.length];
+      const ok = n > 5;
+      return { label: String(n), color: ok ? C.purple.fg : C.blue.fg, bgColor: ok ? C.purple.bg : C.blue.bg, isCorrect: ok };
+    },
   },
 ];
 
-const ITEM_SIZE = 60;
-const FALL_DURATION = 7000;
-const SPAWN_INTERVAL = 900;
+const CIRCLE_SIZES = [66, 72, 62, 70, 64];
+const MAX_CIRCLES_ON_SCREEN = 6; // nunca mais que 6 ao mesmo tempo
 
+// ─── Tela principal ───────────────────────────────────────────────────────────
 export default function MestreDaGalaxiaScreen() {
   const router = useRouter();
+  const { completionState, completeGame } = useGameCompletion(36);
   const [missionIndex, setMissionIndex] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
+  const [gameOver, setGameOver] = useState(false);
   const [score, setScore] = useState(0);
   const [correctHits, setCorrectHits] = useState(0);
-  const [spawnedItems, setSpawnedItems] = useState<FallingItem[]>([]);
+  const [circles, setCircles] = useState<Circle[]>([]);
   const [tappedIds, setTappedIds] = useState<Set<string>>(new Set());
+  const tappedIdsRef = useRef<Set<string>>(new Set());
   const [cometProgress, setCometProgress] = useState(0);
   const [missionComplete, setMissionComplete] = useState(false);
-  const spawnIndexRef = useRef(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [baseHp, setBaseHp] = useState(3);
+  const [cometHit, setCometHit] = useState(false); // animação de impacto
+
+  const spawnRef = useRef(0);
+  const circleCountRef = useRef(0); // rastreia quantos estão na tela
+  const spawnTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const cometTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const missionIndexRef = useRef(missionIndex);
+  const correctHitsRef = useRef(correctHits);
+  missionIndexRef.current = missionIndex;
+  correctHitsRef.current = correctHits;
 
   const mission = MISSIONS[missionIndex];
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-      if (cometTimerRef.current) clearInterval(cometTimerRef.current);
-    };
-  }, []);
+  const stopTimers = () => {
+    if (spawnTimerRef.current) { clearInterval(spawnTimerRef.current); spawnTimerRef.current = null; }
+    if (cometTimerRef.current) { clearInterval(cometTimerRef.current); cometTimerRef.current = null; }
+  };
 
-  // Spawn items for current mission
-  useEffect(() => {
-    if (isFinished || missionComplete) return;
+  // Cleanup ao desmontar
+  useEffect(() => () => stopTimers(), []);
 
-    // Reset for new mission
-    spawnIndexRef.current = 0;
-    setSpawnedItems([]);
+  // ─── Inicia missão ────────────────────────────────────────────────────────
+  const startMission = useCallback((idx: number) => {
+    stopTimers();
+    spawnRef.current = 0;
+    circleCountRef.current = 0;
+    setCircles([]);
     setTappedIds(new Set());
+    tappedIdsRef.current = new Set();
     setCorrectHits(0);
     setCometProgress(0);
+    setCometHit(false);
+    setMissionComplete(false);
 
-    // Spawn items one by one
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      const idx = spawnIndexRef.current;
-      if (idx >= mission.items.length) {
-        if (timerRef.current) clearInterval(timerRef.current);
-        return;
-      }
-      const item = mission.items[idx];
-      const x = 20 + Math.random() * (SCREEN_WIDTH - ITEM_SIZE - 40);
-      const newItem: FallingItem = {
-        ...item,
-        id: `${missionIndex}-${idx}`,
-        x,
-        delay: 0,
-      };
-      setSpawnedItems((prev) => [...prev, newItem]);
-      spawnIndexRef.current += 1;
-    }, SPAWN_INTERVAL);
+    const m = MISSIONS[idx];
 
-    // Comet progress timer
-    if (cometTimerRef.current) clearInterval(cometTimerRef.current);
+    // Spawn de círculos — controla quantidade na tela
+    spawnTimerRef.current = setInterval(() => {
+      if (circleCountRef.current >= MAX_CIRCLES_ON_SCREEN) return; // aguarda espaço
+      const spawnIdx = spawnRef.current;
+      const circleData = m.generateCircle(spawnIdx);
+      const size = CIRCLE_SIZES[spawnIdx % CIRCLE_SIZES.length];
+      const x = 16 + Math.random() * (SCREEN_WIDTH - size - 32);
+      const id = `${idx}-${spawnIdx}`;
+
+      setCircles((prev) => [...prev, { ...circleData, id, x, size }]);
+      circleCountRef.current += 1;
+      spawnRef.current += 1;
+
+      // Remove da tela automaticamente após cair (cleanup de acúmulo)
+      setTimeout(() => {
+        if (!tappedIdsRef.current.has(id) && circleData.isCorrect) {
+          // Perde vida se um círculo correto cair sem ser tocado
+          setBaseHp((hp) => {
+            const newHp = hp - 1;
+            if (newHp <= 0) setTimeout(() => setGameOver(true), 300);
+            return newHp;
+          });
+        }
+        setCircles((prev) => prev.filter((c) => c.id !== id));
+        circleCountRef.current = Math.max(0, circleCountRef.current - 1);
+      }, m.fallDuration + 300);
+    }, m.spawnInterval);
+
+    // Barra do cometa
+    const step = 100 / (m.cometDuration / 200); // % por tick de 200ms
     cometTimerRef.current = setInterval(() => {
       setCometProgress((prev) => {
-        if (prev >= 100) {
-          if (cometTimerRef.current) clearInterval(cometTimerRef.current);
+        const next = prev + step;
+        if (next >= 100) {
+          // Cometa chegou! Game Over imediato
+          stopTimers();
+          setCometHit(true);
+          playSound('wrong');
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
+          setTimeout(() => setGameOver(true), 800);
           return 100;
         }
-        return prev + 1.5;
+        return next;
       });
     }, 200);
+  }, []);
 
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-      if (cometTimerRef.current) clearInterval(cometTimerRef.current);
-    };
-  }, [missionIndex, isFinished]);
+  useEffect(() => {
+    startMission(missionIndex);
+  }, [missionIndex]);
 
-  // Check mission completion
+  // ─── Verificar missão completa ────────────────────────────────────────────
   useEffect(() => {
     if (correctHits >= mission.requiredCorrect && !missionComplete && !isFinished) {
       setMissionComplete(true);
-      if (timerRef.current) clearInterval(timerRef.current);
-      if (cometTimerRef.current) clearInterval(cometTimerRef.current);
+      stopTimers();
       playSound('correct');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
       setTimeout(() => {
-        setMissionComplete(false);
         if (missionIndex < MISSIONS.length - 1) {
           setMissionIndex((i) => i + 1);
           setScore((s) => s + 1);
@@ -201,419 +252,422 @@ export default function MestreDaGalaxiaScreen() {
           setScore((s) => s + 1);
           setIsFinished(true);
         }
-      }, 1800);
+      }, 2000);
     }
   }, [correctHits]);
 
-  // Save on finish
+  // ─── Salvar progresso ─────────────────────────────────────────────────────
   useEffect(() => {
-    if (isFinished) {
-      playSound('victory');
-      const salvar = async () => {
-        try {
-          const perfil = await obterPerfilAtivo();
-          if (perfil) {
-            await registrarProgresso({
-              idUsuario: perfil.id,
-              idLicao: 36,
-              pontuacao: score,
-              tentativas: 1,
-              concluida: true,
-            });
-            const atualizado = await buscarUsuarioPorId(perfil.id);
-            await salvarPerfilAtivo(atualizado);
-          }
-        } catch (e) {
-          console.error(e);
-        }
-      };
-      salvar();
-    }
+    if (!isFinished) return;
+    completeGame(score, MISSIONS.length);
   }, [isFinished]);
 
-  const handleTapItem = useCallback(
-    (id: string, isCorrect: boolean) => {
-      if (tappedIds.has(id)) return;
-      setTappedIds((prev) => new Set(prev).add(id));
+  // ─── Tap em círculo ───────────────────────────────────────────────────────
+  const handleTap = useCallback((id: string, isCorrect: boolean) => {
+    setTappedIds((prev) => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev).add(id);
+      tappedIdsRef.current = next;
+      return next;
+    });
+    // Tira da tela um pouco após o tap (animação acontece antes)
+    setTimeout(() => {
+      setCircles((prev) => prev.filter((c) => c.id !== id));
+      circleCountRef.current = Math.max(0, circleCountRef.current - 1);
+    }, 350);
 
-      if (isCorrect) {
-        playSound('correct');
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        setCorrectHits((c) => c + 1);
-      } else {
-        playSound('wrong');
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      }
-    },
-    [tappedIds]
-  );
+    if (isCorrect) {
+      playSound('correct');
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setCorrectHits((c) => c + 1);
+      setCometProgress((prev) => Math.max(0, prev - 15)); // Empurra o cometa para trás!
+    } else {
+      playSound('wrong');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setCometProgress((prev) => Math.min(100, prev + 15)); // Cometa avança mais rápido!
+    }
+  }, []);
 
-  // ─── Finished Screen ────────────────────────────────────────────────────────
-  if (isFinished) {
+  // ─── Game Over ────────────────────────────────────────────────────────────
+  if (gameOver) {
     return (
-      <SafeAreaView style={styles.finishedSafeArea}>
-        <ConfettiEffect />
-        <View style={styles.finishedContainer}>
-          <Image
-            source={require('../../assets/images/happy-tuki.png')}
-            style={styles.finishedMascot}
-            resizeMode="contain"
-          />
-          <Text style={styles.finishedTitle}>Mestre da Galáxia!</Text>
-          <Text style={styles.finishedSubtitle}>
-            Você salvou a base espacial do cometa! 🚀☄️
-          </Text>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.gameOverContainer}>
+          <Text style={styles.gameOverEmoji}>☄️💥</Text>
+          <Text style={styles.gameOverTitle}>Base Destruída!</Text>
+          <Text style={styles.gameOverSub}>O cometa chegou... mas você pode tentar de novo!</Text>
           <TouchableOpacity
-            style={styles.backButtonLarge}
+            style={styles.retryButton}
             onPress={() => {
-              playSound('click');
-              router.back();
+              setGameOver(false);
+              setMissionIndex(0);
+              setBaseHp(3);
+              setScore(0);
+              startMission(0); // Força o reinício caso missionIndex já seja 0
             }}
           >
-            <Text style={styles.backButtonText}>Voltar para a Trilha</Text>
+            <Text style={styles.retryButtonText}>Tentar Novamente</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.backButtonSmall}
+            onPress={() => { playSound('click'); router.back(); }}
+          >
+            <Text style={styles.backButtonSmallText}>Voltar para a Trilha</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
 
+  const cometColor = cometProgress > 75 ? '#ef4444' : cometProgress > 50 ? '#f59e0b' : '#22c55e';
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
+
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => {
-            playSound('click');
-            router.back();
-          }}
-          style={styles.backButton}
-        >
-          <ChevronLeft size={28} color="#fff" />
+        <TouchableOpacity onPress={() => { playSound('click'); router.back(); }} style={styles.backButton}>
+          <ChevronLeft size={26} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Mestre da Galáxia</Text>
-        <View style={styles.progressContainer}>
-          <Text style={styles.progressText}>
-            {missionIndex + 1}/{MISSIONS.length}
-          </Text>
+        <View style={styles.progressPill}>
+          <Text style={styles.progressText}>{missionIndex + 1}/{MISSIONS.length}</Text>
         </View>
       </View>
 
-      {/* Mission instruction */}
-      <Animated.View
-        entering={ZoomIn}
-        key={`mission-${missionIndex}`}
-        style={styles.missionBanner}
-      >
-        <Text style={styles.missionText}>{mission.instruction}</Text>
-        <Text style={styles.hitCounter}>
-          ✅ {correctHits}/{mission.requiredCorrect}
-        </Text>
+      {/* Banner da missão */}
+      <Animated.View entering={ZoomIn} key={`mission-${missionIndex}`} style={styles.missionBanner}>
+        <Text style={styles.missionEmoji}>{mission.emoji}</Text>
+        <View style={styles.missionTexts}>
+          <Text style={styles.missionTitle}>{mission.title}</Text>
+          <Text style={styles.missionSub}>{mission.subtitle}</Text>
+        </View>
+        <View style={[styles.hitBadge, correctHits >= mission.requiredCorrect && styles.hitBadgeDone]}>
+          <Text style={styles.hitBadgeText}>{correctHits}/{mission.requiredCorrect}</Text>
+        </View>
       </Animated.View>
 
-      {/* Comet progress bar */}
-      <View style={styles.cometBarContainer}>
-        <Text style={styles.cometLabel}>☄️ Cometa</Text>
-        <View style={styles.cometBarBg}>
-          <View
-            style={[
-              styles.cometBarFill,
-              {
-                width: `${Math.min(cometProgress, 100)}%`,
-                backgroundColor:
-                  cometProgress > 75
-                    ? '#ef4444'
-                    : cometProgress > 50
-                    ? '#f59e0b'
-                    : '#22c55e',
-              },
-            ]}
-          />
+      {/* Vidas + Barra do cometa */}
+      <View style={styles.statusRow}>
+        <View style={styles.livesRow}>
+          {Array.from({ length: 3 }, (_, i) => (
+            <Text key={i} style={{ fontSize: 18, opacity: i < baseHp ? 1 : 0.3 }}>
+              {i < baseHp ? '❤️' : '🖤'}
+            </Text>
+          ))}
         </View>
-        <Text style={styles.cometLabel}>🛸 Base</Text>
+        <View style={styles.cometBarWrap}>
+          <Text style={{ fontSize: 16 }}>☄️</Text>
+          <View style={styles.cometBarBg}>
+            <View style={[styles.cometBarFill, { width: `${cometProgress}%`, backgroundColor: cometColor }]} />
+          </View>
+          <ShieldCheck size={17} color="#22c55e" />
+        </View>
       </View>
 
-      {/* Game area */}
+      {/* Impacto do cometa */}
+      {cometHit && (
+        <Animated.View entering={BounceIn} style={styles.cometImpactBanner}>
+          <Text style={styles.cometImpactText}>💥 O cometa atingiu a base!</Text>
+        </Animated.View>
+      )}
+
+      {/* Área de jogo */}
       <View style={styles.gameArea}>
+
+        {/* Missão completa */}
         {missionComplete && (
-          <Animated.View entering={BounceIn} style={styles.missionCompleteBanner}>
-            <Text style={styles.missionCompleteText}>
-              ✨ Missão Cumprida! ✨
-            </Text>
+          <Animated.View entering={BounceIn} style={styles.completeBanner}>
+            <Text style={styles.completeText}>✨ Missão Completa!</Text>
+            <Text style={styles.completeSub}>Cometa destruído! 💥</Text>
           </Animated.View>
         )}
 
-        {spawnedItems.map((item) => {
-          const isTapped = tappedIds.has(item.id);
+        {/* Círculos caindo */}
+        {circles.map((circle) => {
+          const isTapped = tappedIds.has(circle.id);
           return (
-            <FallingItemComponent
-              key={item.id}
-              item={item}
+            <FallingCircle
+              key={circle.id}
+              circle={circle}
               isTapped={isTapped}
-              onTap={handleTapItem}
+              fallDuration={mission.fallDuration}
+              onTap={handleTap}
             />
           );
         })}
+
+        {/* Base */}
+        <View style={styles.base}>
+          <Text style={{ fontSize: 28 }}>🛸</Text>
+          <Text style={styles.baseLabel}>BASE ESPACIAL</Text>
+        </View>
       </View>
+      {completionState && (
+        <GameCompletionModal state={completionState} onContinue={() => router.back()} />
+      )}
     </SafeAreaView>
   );
 }
 
-// ─── Falling Item Component ─────────────────────────────────────────────────
-function FallingItemComponent({
-  item,
+// ─── Círculo Caindo ───────────────────────────────────────────────────────────
+function FallingCircle({
+  circle,
   isTapped,
+  fallDuration,
   onTap,
 }: {
-  item: FallingItem;
+  circle: Circle;
   isTapped: boolean;
+  fallDuration: number;
   onTap: (id: string, isCorrect: boolean) => void;
 }) {
-  const translateY = useSharedValue(-ITEM_SIZE);
-  const scale = useSharedValue(1);
+  // Calcula a altura disponível para cair (gameArea = tela - headers - base)
+  const fallDistance = SCREEN_HEIGHT * 0.54;
+
+  const translateY = useSharedValue(0);
+  const scale = useSharedValue(0.3);
   const opacity = useSharedValue(1);
-  const tapScale = useSharedValue(1);
 
   useEffect(() => {
-    translateY.value = withTiming(SCREEN_HEIGHT * 0.65, {
-      duration: FALL_DURATION,
-      easing: Easing.linear,
-    });
+    scale.value = withSpring(1, { damping: 11, stiffness: 140 });
+    translateY.value = withTiming(fallDistance, { duration: fallDuration, easing: Easing.linear });
   }, []);
 
   useEffect(() => {
     if (isTapped) {
-      if (item.isCorrect) {
-        tapScale.value = withSequence(withSpring(1.5), withTiming(0, { duration: 300 }));
-        opacity.value = withTiming(0, { duration: 400 });
+      if (circle.isCorrect) {
+        scale.value = withSequence(withSpring(1.7, { damping: 7 }), withTiming(0, { duration: 220 }));
+        opacity.value = withTiming(0, { duration: 270 });
       } else {
-        tapScale.value = withSequence(
-          withTiming(0.7, { duration: 100 }),
-          withSpring(1)
-        );
-        opacity.value = withSequence(
-          withTiming(0.3, { duration: 100 }),
-          withTiming(0.6, { duration: 200 })
-        );
+        scale.value = withSequence(withTiming(0.6, { duration: 70 }), withTiming(0, { duration: 200 }));
+        opacity.value = withTiming(0, { duration: 280 });
       }
     }
   }, [isTapped]);
 
   const animStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: translateY.value },
-      { scale: scale.value * tapScale.value },
-    ],
+    transform: [{ translateY: translateY.value }, { scale: scale.value }],
     opacity: opacity.value,
   }));
 
-  const isEmoji = !item.emoji.includes('+');
+  const isTextLabel = circle.label.length > 1 || /[0-9]/.test(circle.label);
 
   return (
     <TouchableOpacity
-      activeOpacity={1}
-      disabled={isTapped && item.isCorrect}
-      onPress={() => onTap(item.id, item.isCorrect)}
-      style={{ position: 'absolute', left: item.x, top: 0, zIndex: 10 }}
+      activeOpacity={0.85}
+      disabled={isTapped}
+      onPress={() => onTap(circle.id, circle.isCorrect)}
+      style={[styles.circleTouch, { left: circle.x }]}
     >
       <Animated.View
         style={[
-          styles.fallingItem,
-          isTapped && item.isCorrect && styles.fallingItemCorrect,
-          isTapped && !item.isCorrect && styles.fallingItemWrong,
+          styles.circle,
+          {
+            width: circle.size,
+            height: circle.size,
+            borderRadius: circle.size / 2,
+            backgroundColor: circle.bgColor,
+            borderColor: circle.color,
+            shadowColor: circle.color,
+          },
+          isTapped && circle.isCorrect && { borderColor: '#22c55e', backgroundColor: '#052e16' },
+          isTapped && !circle.isCorrect && { borderColor: '#ef4444', backgroundColor: '#2a0a0a' },
           animStyle,
         ]}
       >
-        {isEmoji ? (
-          <Text style={styles.fallingEmoji}>{item.emoji}</Text>
+        {isTextLabel ? (
+          <Text style={[styles.circleText, { color: circle.color, fontSize: circle.size > 68 ? 17 : 15 }]}>
+            {circle.label}
+          </Text>
         ) : (
-          <Text style={styles.fallingMath}>{item.emoji}</Text>
+          <Text style={{ fontSize: circle.size > 68 ? 30 : 26 }}>{circle.label}</Text>
         )}
       </Animated.View>
     </TouchableOpacity>
   );
 }
 
-// ─── Styles ─────────────────────────────────────────────────────────────────
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0520' },
+  safeArea: { flex: 1, backgroundColor: '#06040f' },
 
   header: {
-    padding: 20,
-    paddingTop: 40,
+    paddingHorizontal: 18,
+    paddingTop: 28,
+    paddingBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#1a0a3e',
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-    elevation: 6,
+    backgroundColor: '#110a2e',
+    borderBottomLeftRadius: 22,
+    borderBottomRightRadius: 22,
+    elevation: 8,
     shadowColor: '#ef4444',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
   },
-  headerTitle: { color: '#fff', fontSize: 22, fontWeight: 'bold' },
-  backButton: {
-    padding: 8,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 12,
-  },
-  progressContainer: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  progressText: { color: '#f87171', fontWeight: 'bold', fontSize: 16 },
+  backButton: { padding: 8, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 12 },
+  headerTitle: { color: '#fff', fontSize: 17, fontWeight: 'bold' },
+  progressPill: { backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 14, paddingVertical: 5, borderRadius: 14 },
+  progressText: { color: '#f87171', fontWeight: 'bold', fontSize: 14 },
 
-  // Mission banner
   missionBanner: {
-    marginHorizontal: 20,
-    marginTop: 16,
-    backgroundColor: '#1e1145',
+    marginHorizontal: 14,
+    marginTop: 10,
+    backgroundColor: '#1a0a3e',
     borderRadius: 18,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderWidth: 2,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderWidth: 1.5,
     borderColor: '#4f46e5',
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 10,
+    elevation: 4,
+    shadowColor: '#4f46e5',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
   },
-  missionText: {
-    color: '#e0e7ff',
-    fontSize: 16,
-    fontWeight: '800',
-    flex: 1,
+  missionEmoji: { fontSize: 26 },
+  missionTexts: { flex: 1 },
+  missionTitle: { color: '#e0e7ff', fontSize: 13, fontWeight: '800', lineHeight: 18 },
+  missionSub: { color: '#6366f1', fontSize: 11, marginTop: 2 },
+  hitBadge: {
+    backgroundColor: '#052e16',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1.5,
+    borderColor: '#22c55e',
   },
-  hitCounter: {
-    color: '#22c55e',
-    fontSize: 18,
-    fontWeight: '900',
-    marginLeft: 12,
-  },
+  hitBadgeDone: { backgroundColor: '#166534', borderColor: '#4ade80' },
+  hitBadgeText: { color: '#4ade80', fontWeight: '900', fontSize: 14 },
 
-  // Comet bar
-  cometBarContainer: {
+  statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 20,
-    marginTop: 12,
-    gap: 8,
+    marginHorizontal: 14,
+    marginTop: 8,
+    gap: 10,
   },
-  cometLabel: {
-    fontSize: 16,
-    color: '#fff',
-  },
+  livesRow: { flexDirection: 'row', gap: 3 },
+  cometBarWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
   cometBarBg: {
     flex: 1,
-    height: 12,
+    height: 10,
     backgroundColor: '#1e1145',
-    borderRadius: 6,
+    borderRadius: 5,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#2e2560',
   },
-  cometBarFill: {
-    height: '100%',
-    borderRadius: 5,
-  },
+  cometBarFill: { height: '100%', borderRadius: 4 },
 
-  // Game area
+  cometImpactBanner: {
+    marginHorizontal: 14,
+    marginTop: 6,
+    backgroundColor: '#2a0a0a',
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderWidth: 1.5,
+    borderColor: '#ef4444',
+    alignItems: 'center',
+  },
+  cometImpactText: { color: '#f87171', fontWeight: '800', fontSize: 13 },
+
   gameArea: {
     flex: 1,
     position: 'relative',
     overflow: 'hidden',
-    marginTop: 8,
+    marginTop: 4,
   },
 
-  // Mission complete
-  missionCompleteBanner: {
+  circleTouch: { position: 'absolute', top: 0, zIndex: 10 },
+  circle: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2.5,
+    elevation: 8,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+  },
+  circleText: { fontWeight: '900', textAlign: 'center', letterSpacing: 0.5 },
+
+  base: {
     position: 'absolute',
-    top: '35%',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    paddingVertical: 6,
+    backgroundColor: 'rgba(17,10,46,0.9)',
+    borderTopWidth: 1.5,
+    borderTopColor: '#2e2560',
+  },
+  baseLabel: { color: '#4f46e5', fontSize: 9, fontWeight: '800', letterSpacing: 1, marginTop: 1 },
+
+  completeBanner: {
+    position: 'absolute',
+    top: '30%',
     left: 20,
     right: 20,
     zIndex: 100,
     backgroundColor: '#052e16',
     borderColor: '#22c55e',
-    borderWidth: 3,
-    borderRadius: 24,
-    paddingVertical: 24,
+    borderWidth: 2.5,
+    borderRadius: 22,
+    paddingVertical: 20,
     alignItems: 'center',
     elevation: 20,
-  },
-  missionCompleteText: {
-    color: '#22c55e',
-    fontSize: 28,
-    fontWeight: '900',
-  },
-
-  // Falling items
-  fallingItem: {
-    width: ITEM_SIZE,
-    height: ITEM_SIZE,
-    borderRadius: ITEM_SIZE / 2,
-    backgroundColor: '#1e1b4b',
-    borderWidth: 2.5,
-    borderColor: '#4f46e5',
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 6,
-    shadowColor: '#4f46e5',
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: '#22c55e',
+    shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
-    shadowRadius: 6,
+    shadowRadius: 14,
   },
-  fallingItemCorrect: {
-    backgroundColor: '#052e16',
-    borderColor: '#22c55e',
-  },
-  fallingItemWrong: {
-    backgroundColor: '#450a0a',
-    borderColor: '#ef4444',
-  },
-  fallingEmoji: {
-    fontSize: 28,
-  },
-  fallingMath: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#fbbf24',
-  },
+  completeText: { color: '#4ade80', fontSize: 22, fontWeight: '900' },
+  completeSub: { color: '#86efac', fontSize: 14, marginTop: 5 },
 
-  // Finished
-  finishedSafeArea: { flex: 1, backgroundColor: '#0a0520' },
-  finishedContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 30,
+  // Game Over
+  gameOverContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 30, backgroundColor: '#06040f' },
+  gameOverEmoji: { fontSize: 60, marginBottom: 16 },
+  gameOverTitle: { fontSize: 32, fontWeight: '900', color: '#ef4444', marginBottom: 10, textAlign: 'center' },
+  gameOverSub: { fontSize: 16, color: '#94a3b8', marginBottom: 36, textAlign: 'center', lineHeight: 24 },
+  retryButton: {
+    backgroundColor: '#ef4444',
+    paddingVertical: 16,
+    paddingHorizontal: 40,
+    borderRadius: 28,
+    marginBottom: 14,
+    elevation: 4,
+    shadowColor: '#ef4444',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
   },
-  finishedMascot: {
-    width: '70%',
-    height: Dimensions.get('window').height * 0.32,
-    marginBottom: 20,
-  },
-  finishedTitle: {
-    fontSize: 36,
-    fontWeight: '900',
-    color: '#f87171',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  finishedSubtitle: {
-    fontSize: 20,
-    color: '#94a3b8',
-    marginBottom: 40,
-    textAlign: 'center',
-    lineHeight: 28,
-  },
+  retryButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  backButtonSmall: { paddingVertical: 10, paddingHorizontal: 20 },
+  backButtonSmallText: { color: '#6366f1', fontSize: 15, fontWeight: '700', textDecorationLine: 'underline' },
+
+  // Vitória
+  finishedContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 30 },
+  finishedMascot: { width: '70%', height: Dimensions.get('window').height * 0.3, marginBottom: 16 },
+  finishedTitle: { fontSize: 30, fontWeight: '900', color: '#f87171', marginBottom: 10, textAlign: 'center' },
+  finishedSubtitle: { fontSize: 17, color: '#94a3b8', marginBottom: 36, textAlign: 'center', lineHeight: 25 },
   backButtonLarge: {
     backgroundColor: '#ef4444',
     paddingVertical: 16,
     paddingHorizontal: 40,
     borderRadius: 30,
     elevation: 4,
+    shadowColor: '#ef4444',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.45,
+    shadowRadius: 8,
   },
-  backButtonText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
+  backButtonText: { color: '#fff', fontSize: 19, fontWeight: 'bold' },
 });

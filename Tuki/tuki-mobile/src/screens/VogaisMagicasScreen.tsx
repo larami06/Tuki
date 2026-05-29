@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, CheckCircle, XCircle } from 'lucide-react-native';
 import Animated, { FadeIn, FadeOut, BounceIn } from 'react-native-reanimated';
-import { obterPerfilAtivo, salvarPerfilAtivo } from '../services/storage';
-import { registrarProgresso, buscarUsuarioPorId } from '../services/api';
 import { playSound } from '../services/sound';
 import { useEffect } from 'react';
-import ConfettiEffect from '../components/ConfettiEffect';
+import { useGameCompletion } from '../hooks/useGameCompletion';
+import GameCompletionModal from '../components/GameCompletionModal';
 
 const CHALLENGES = [
   { word: 'BELHA', missing: 'A', emoji: '🐝', completeWord: 'ABELHA' },
@@ -21,6 +20,7 @@ const VOWELS = ['A', 'E', 'I', 'O', 'U'];
 
 export default function VogaisMagicasScreen() {
   const router = useRouter();
+  const { completionState, completeGame } = useGameCompletion(1);
 
   // Desafios ativos que estão sendo exibidos (muda na rodada de revisão)
   const [activeChallenges, setActiveChallenges] = useState<any[]>(CHALLENGES);
@@ -58,27 +58,7 @@ export default function VogaisMagicasScreen() {
   // Salva o progresso quando o jogo é finalmente concluído com sucesso
   useEffect(() => {
     if (isFinished) {
-      playSound('victory');
-      const salvarProgresso = async () => {
-        try {
-          const perfil = await obterPerfilAtivo();
-          if (perfil) {
-            await registrarProgresso({
-              idUsuario: perfil.id,
-              idLicao: 1, // Vogais Mágicas
-              pontuacao: score,
-              tentativas: 1,
-              concluida: true
-            });
-            // Atualiza o perfil ativo em cache para refletir na HomeScreen
-            const perfilAtualizado = await buscarUsuarioPorId(perfil.id);
-            await salvarPerfilAtivo(perfilAtualizado);
-          }
-        } catch (error) {
-          console.error("Erro ao registrar progresso de Vogais Mágicas:", error);
-        }
-      };
-      salvarProgresso();
+      completeGame(score, CHALLENGES.length);
     }
   }, [isFinished]);
 
@@ -122,30 +102,6 @@ export default function VogaisMagicasScreen() {
           <Text style={styles.reviewTitle}>Vamos revisar!</Text>
           <Text style={styles.reviewSubtitle}>Vamos treinar os itens que você errou para ficar nota 10!</Text>
         </Animated.View>
-      </SafeAreaView>
-    );
-  }
-
-  if (isFinished) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <ConfettiEffect />
-        <View style={styles.finishedContainer}>
-          <Image source={require('../../assets/images/happy-tuki.png')} style={styles.finishedMascot} resizeMode="contain" />
-          <Text style={styles.finishedTitle}>Parabéns!</Text>
-          <Text style={styles.finishedSubtitle}>Você completou as Vogais Mágicas!</Text>
-          
-          <View style={styles.starsSummaryContainer}>
-            <Text style={styles.scoreText}>Acertos: {score} de {CHALLENGES.length}</Text>
-            <View style={styles.starsRewardBadge}>
-              <Text style={styles.starsRewardText}>⭐ +{score * 3} Estrelas!</Text>
-            </View>
-          </View>
-
-          <TouchableOpacity style={styles.backButtonLarge} onPress={() => { playSound('click'); router.back(); }}>
-            <Text style={styles.backButtonText}>Voltar para a Trilha</Text>
-          </TouchableOpacity>
-        </View>
       </SafeAreaView>
     );
   }
@@ -225,6 +181,9 @@ export default function VogaisMagicasScreen() {
           </Animated.View>
         )}
       </View>
+      {completionState && (
+        <GameCompletionModal state={completionState} onContinue={() => router.back()} />
+      )}
     </SafeAreaView>
   );
 }
@@ -403,7 +362,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#1e293b',
-    marginBottom: 50,
+    marginBottom: 12,
   },
   backButtonLarge: {
     backgroundColor: '#ff6b6b',

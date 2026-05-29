@@ -83,6 +83,75 @@ export async function salvarAtividadeConcluida(atividadeId: number) {
     }
 }
 
+// DESAFIO DO DIA — controla o limite de uma jogada por dia por criança
+const CHAVE_ULTIMO_DESAFIO = '@tuki_ultimo_desafio';
+
+export async function salvarUltimoDesafio(idUsuario: number): Promise<void> {
+    const key = `${CHAVE_ULTIMO_DESAFIO}_${idUsuario}`;
+    await AsyncStorage.setItem(key, new Date().toDateString());
+}
+
+export async function verificarJogouHoje(idUsuario: number): Promise<boolean> {
+    const key = `${CHAVE_ULTIMO_DESAFIO}_${idUsuario}`;
+    const data = await AsyncStorage.getItem(key);
+    return data === new Date().toDateString();
+}
+
+// ─── RUBIS (moeda premium, raros) ─────────────────────────────────────────────
+const CHAVE_RUBIS = '@tuki_rubis';
+
+export async function obterRubis(idUsuario: number): Promise<number> {
+    const key = `${CHAVE_RUBIS}_${idUsuario}`;
+    const val = await AsyncStorage.getItem(key);
+    return val ? parseInt(val, 10) : 0;
+}
+
+export async function adicionarRubis(idUsuario: number, quantidade: number): Promise<number> {
+    const key = `${CHAVE_RUBIS}_${idUsuario}`;
+    const atual = await obterRubis(idUsuario);
+    const novo = atual + quantidade;
+    await AsyncStorage.setItem(key, String(novo));
+    return novo;
+}
+
+// ─── STREAK ────────────────────────────────────────────────────────────────────
+export interface StreakInfo {
+    streakNovo: number;
+    subiu: boolean;
+    resetou: boolean;
+}
+
+export async function atualizarStreak(idUsuario: number): Promise<StreakInfo> {
+    const keyDia    = `@tuki_ultimo_jogo_${idUsuario}`;
+    const keyStreak = `@tuki_streak_${idUsuario}`;
+
+    const hoje  = new Date().toDateString();
+    const ontem = new Date(Date.now() - 86_400_000).toDateString();
+
+    const ultimoDia  = await AsyncStorage.getItem(keyDia);
+    const streakAtual = parseInt((await AsyncStorage.getItem(keyStreak)) || '0', 10);
+
+    if (ultimoDia === hoje) {
+        // Já jogou hoje — streak não muda
+        return { streakNovo: streakAtual, subiu: false, resetou: false };
+    }
+
+    let novoStreak: number;
+    let resetou = false;
+
+    if (ultimoDia === ontem) {
+        novoStreak = streakAtual + 1;
+    } else {
+        novoStreak = 1;
+        resetou = ultimoDia !== null; // só "resetou" se havia streak anterior
+    }
+
+    await AsyncStorage.setItem(keyDia,    hoje);
+    await AsyncStorage.setItem(keyStreak, String(novoStreak));
+
+    return { streakNovo: novoStreak, subiu: true, resetou };
+}
+
 export async function obterAtividadesConcluidas() {
     try {
         const perfil = await obterPerfilAtivo();

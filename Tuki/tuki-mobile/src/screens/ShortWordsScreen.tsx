@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Dimensions,
-  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, Sparkles, Star } from 'lucide-react-native';
@@ -26,10 +25,10 @@ import Animated, {
   ZoomIn,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { obterPerfilAtivo, salvarPerfilAtivo } from '../services/storage';
-import { registrarProgresso, buscarUsuarioPorId } from '../services/api';
 import { playSound } from '../services/sound';
 import ConfettiEffect from '../components/ConfettiEffect';
+import { useGameCompletion } from '../hooks/useGameCompletion';
+import GameCompletionModal from '../components/GameCompletionModal';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -92,6 +91,7 @@ function shadeColor(color: string, percent: number) {
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 export default function ShortWordsScreen() {
   const router = useRouter();
+  const { completionState, completeGame } = useGameCompletion(4);
 
   // Game state
   const [challengeIndex, setChallengeIndex] = useState(0);
@@ -182,26 +182,7 @@ export default function ShortWordsScreen() {
   // Save progress on finish
   useEffect(() => {
     if (isFinished) {
-      playSound('victory');
-      const salvarProgresso = async () => {
-        try {
-          const perfil = await obterPerfilAtivo();
-          if (perfil) {
-            await registrarProgresso({
-              idUsuario: perfil.id,
-              idLicao: 4, // Palavras Curtas
-              pontuacao: score,
-              tentativas: attempts,
-              concluida: true,
-            });
-            const perfilAtualizado = await buscarUsuarioPorId(perfil.id);
-            await salvarPerfilAtivo(perfilAtualizado);
-          }
-        } catch (error) {
-          console.error('Erro ao registrar progresso de Palavras Curtas:', error);
-        }
-      };
-      salvarProgresso();
+      completeGame(score, WORD_CHALLENGES.length * 2);
     }
   }, [isFinished]);
 
@@ -235,45 +216,6 @@ export default function ShortWordsScreen() {
     setShowCelebration(false);
     setShowWordComplete(false);
   };
-
-  // ─── FINISHED SCREEN ─────────────────────────────────────────────────────
-  if (isFinished) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <ConfettiEffect />
-        <View style={styles.finishedContainer}>
-          <Image
-            source={require('../../assets/images/happy-tuki.png')}
-            style={styles.finishedMascot}
-            resizeMode="contain"
-          />
-          <Text style={styles.finishedTitle}>Parabéns!</Text>
-          <Text style={styles.finishedSubtitle}>
-            Você montou todas as palavras! Que craque! 🏆✨
-          </Text>
-
-          <View style={styles.starsSummaryContainer}>
-            <Text style={styles.scoreText}>
-              Acertos: {score} de {totalChallenges * 2}
-            </Text>
-            <View style={styles.starsRewardBadge}>
-              <Text style={styles.starsRewardText}>⭐ +40 Estrelas obtidas!</Text>
-            </View>
-          </View>
-
-          <TouchableOpacity
-            style={styles.backButtonLarge}
-            onPress={() => {
-              playSound('click');
-              router.back();
-            }}
-          >
-            <Text style={styles.backButtonText}>Voltar para a Trilha</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   // ─── GAME SCREEN ──────────────────────────────────────────────────────────
   return (
@@ -382,6 +324,9 @@ export default function ShortWordsScreen() {
             })}
           </View>
         </View>
+      {completionState && (
+        <GameCompletionModal state={completionState} onContinue={() => router.back()} />
+      )}
       </SafeAreaView>
     </GestureHandlerRootView>
   );

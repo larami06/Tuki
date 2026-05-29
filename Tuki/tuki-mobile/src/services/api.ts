@@ -5,11 +5,6 @@ const debuggerHost = Constants.expoConfig?.hostUri;
 const localhost = debuggerHost?.split(':')[0] || 'localhost';
 export const API_URL = `http://${localhost}:5276`;
 
-console.log('--- CONFIGURAÇÃO DE API ---');
-console.log('Host detectado:', debuggerHost);
-console.log('IP final:', localhost);
-console.log('URL da API:', API_URL);
-console.log('---------------------------');
 
 // INTERFACES
 export interface UsuarioCreateDto {
@@ -187,6 +182,7 @@ export const comprarRecompensa = async (idUsuario: number, idRecompensa: number)
   return response.json() as Promise<InventarioResponseDto>;
 };
 
+
 // FUNÇÕES DE RESPONSÁVEL (PAI/MÃE)
 export const criarResponsavel = async (dados: ResponsavelCreateDto): Promise<ResponsavelResponseDto> => {
   const response = await fetch(`${API_URL}/api/Responsaveis`, {
@@ -203,6 +199,15 @@ export const criarResponsavel = async (dados: ResponsavelCreateDto): Promise<Res
   }
 
   return response.json() as Promise<ResponsavelResponseDto>;
+};
+
+export const atualizarInventario = async (idUsuario: number, moedas: number, estrelas: number, xp: number): Promise<void> => {
+  const response = await fetch(`${API_URL}/api/Inventarios/usuario/${idUsuario}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ moedas, estrelas, xp }),
+  });
+  if (!response.ok) throw new Error('Erro ao atualizar inventário');
 };
 
 export const loginResponsavel = async (email: string, senha: string): Promise<ResponsavelResponseDto> => {

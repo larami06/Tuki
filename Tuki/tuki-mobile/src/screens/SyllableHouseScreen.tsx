@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions, Image, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, Info, HelpCircle, Star, Sparkles } from 'lucide-react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -17,10 +17,10 @@ import Animated, {
   BounceIn,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { obterPerfilAtivo, salvarPerfilAtivo } from '../services/storage';
-import { registrarProgresso, buscarUsuarioPorId } from '../services/api';
 import { playSound } from '../services/sound';
 import ConfettiEffect from '../components/ConfettiEffect';
+import { useGameCompletion } from '../hooks/useGameCompletion';
+import GameCompletionModal from '../components/GameCompletionModal';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -67,6 +67,7 @@ const TARGET_CENTER_Y = WINDOW_Y + WINDOW_SIZE / 2;
 
 export default function SyllableHouseScreen() {
   const router = useRouter();
+  const { completionState, completeGame } = useGameCompletion(3);
 
   // Round State ('B' or 'C')
   const [currentLetter, setCurrentLetter] = useState<'B' | 'C'>('B');
@@ -99,27 +100,7 @@ export default function SyllableHouseScreen() {
   // Handle final victory and progress saving
   useEffect(() => {
     if (isFinished) {
-      playSound('victory');
-      const salvarProgresso = async () => {
-        try {
-          const perfil = await obterPerfilAtivo();
-          if (perfil) {
-            await registrarProgresso({
-              idUsuario: perfil.id,
-              idLicao: 3, // Família do B e C
-              pontuacao: score,
-              tentativas: 1,
-              concluida: true,
-            });
-            // Refresh storage profile cache
-            const perfilAtualizado = await buscarUsuarioPorId(perfil.id);
-            await salvarPerfilAtivo(perfilAtualizado);
-          }
-        } catch (error) {
-          console.error('Erro ao registrar progresso de Família do B e C:', error);
-        }
-      };
-      salvarProgresso();
+      completeGame(score, 10);
     }
   }, [isFinished]);
 
@@ -229,30 +210,6 @@ export default function SyllableHouseScreen() {
     setIsFinished(false);
     setShowCelebration(false);
   };
-
-  if (isFinished) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <ConfettiEffect />
-        <View style={styles.finishedContainer}>
-          <Image source={require('../../assets/images/happy-tuki.png')} style={styles.finishedMascot} resizeMode="contain" />
-          <Text style={styles.finishedTitle}>Incrível!</Text>
-          <Text style={styles.finishedSubtitle}>Você ajudou o Tuki a construir as famílias silábicas do B e C! 🏡🌟</Text>
-
-          <View style={styles.starsSummaryContainer}>
-            <Text style={styles.scoreText}>Pontuação: {score} de 10</Text>
-            <View style={styles.starsRewardBadge}>
-              <Text style={styles.starsRewardText}>⭐ +30 Estrelas obtidas!</Text>
-            </View>
-          </View>
-
-          <TouchableOpacity style={styles.backButtonLarge} onPress={() => { playSound('click'); router.back(); }}>
-            <Text style={styles.backButtonText}>Voltar para a Trilha</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -376,6 +333,9 @@ export default function SyllableHouseScreen() {
             })}
           </View>
         </View>
+      {completionState && (
+        <GameCompletionModal state={completionState} onContinue={() => router.back()} />
+      )}
       </SafeAreaView>
     </GestureHandlerRootView>
   );

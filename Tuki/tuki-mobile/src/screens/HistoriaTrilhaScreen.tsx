@@ -5,16 +5,14 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, ChevronRight, Star, CheckCircle, XCircle } from 'lucide-react-native';
-import { obterPerfilAtivo, salvarPerfilAtivo } from '../services/storage';
-import { registrarProgresso, buscarUsuarioPorId } from '../services/api';
 import { playSound } from '../services/sound';
-import ConfettiEffect from '../components/ConfettiEffect';
+import { useGameCompletion } from '../hooks/useGameCompletion';
+import GameCompletionModal from '../components/GameCompletionModal';
 import HISTORIAS from '../data/trilhaHistoriasData';
 
-type Fase = 'lendo' | 'quiz' | 'resultado' | 'recompensa';
+type Fase = 'lendo' | 'quiz' | 'resultado';
 
 const RECOMPENSA_ESTRELAS = 3;
-const RECOMPENSA_MOEDAS = 15;
 
 interface Props {
   idLicao: number;
@@ -22,12 +20,12 @@ interface Props {
 
 export default function HistoriaTrilhaScreen({ idLicao }: Props) {
   const router = useRouter();
+  const { completionState, completeGame } = useGameCompletion(idLicao);
   const config = HISTORIAS[idLicao];
 
   const [paginaAtual, setPaginaAtual] = useState(0);
   const [fase, setFase] = useState<Fase>('lendo');
   const [respostaIdx, setRespostaIdx] = useState<number | null>(null);
-  const [mostrarConfete, setMostrarConfete] = useState(false);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
 
@@ -76,33 +74,16 @@ export default function HistoriaTrilhaScreen({ idLicao }: Props) {
   const responder = (idx: number) => {
     setRespostaIdx(idx);
     setFase('resultado');
-    playSound(idx === quiz.correta ? 'victory' : 'click');
+    playSound(idx === quiz.correta ? 'correct' : 'click');
   };
 
-  const verRecompensa = async () => {
-    setFase('recompensa');
-    if (acertou) setMostrarConfete(true);
-    try {
-      const perfil = await obterPerfilAtivo();
-      if (perfil) {
-        await registrarProgresso({
-          idUsuario: perfil.id,
-          idLicao,
-          pontuacao: acertou ? 3 : 1,
-          tentativas: 1,
-          concluida: true,
-        });
-        const perfilAtualizado = await buscarUsuarioPorId(perfil.id);
-        await salvarPerfilAtivo(perfilAtualizado);
-      }
-    } catch (e) {
-      console.error('Erro ao registrar progresso:', e);
-    }
+  const verRecompensa = () => {
+    const acertouAgora = respostaIdx === quiz.correta;
+    completeGame(acertouAgora ? 3 : 1, 3);
   };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: bgAtual }]}>
-      {mostrarConfete && <ConfettiEffect />}
 
       {/* Header */}
       <View style={styles.header}>
@@ -112,7 +93,7 @@ export default function HistoriaTrilhaScreen({ idLicao }: Props) {
         <Text style={styles.headerTitle} numberOfLines={1}>{config.titulo}</Text>
         <View style={styles.estrelas}>
           {Array.from({ length: RECOMPENSA_ESTRELAS }).map((_, i) => (
-            <Star key={i} size={16} color="#F59E0B" fill={fase === 'recompensa' && acertou ? '#F59E0B' : 'transparent'} />
+            <Star key={i} size={16} color="#F59E0B" fill="transparent" />
           ))}
         </View>
       </View>
@@ -207,31 +188,8 @@ export default function HistoriaTrilhaScreen({ idLicao }: Props) {
         </View>
       )}
 
-      {/* ── RECOMPENSA ── */}
-      {fase === 'recompensa' && (
-        <View style={styles.centeredContainer}>
-          <View style={styles.recompensaCard}>
-            <Text style={styles.recompensaTitulo}>{acertou ? 'Parabéns! 🎉' : 'Boa leitura! 📖'}</Text>
-            <Text style={styles.recompensaSub}>
-              {acertou ? 'Você terminou e acertou!' : 'Você terminou a história!'}
-            </Text>
-            <View style={styles.recompensaItens}>
-              <View style={styles.recompensaItem}>
-                <Text style={styles.recompensaEmoji}>🪙</Text>
-                <Text style={styles.recompensaValor}>+{acertou ? RECOMPENSA_MOEDAS : 5}</Text>
-              </View>
-              {acertou && (
-                <View style={styles.recompensaItem}>
-                  <Star size={28} color="#F59E0B" fill="#F59E0B" />
-                  <Text style={styles.recompensaValor}>+{RECOMPENSA_ESTRELAS}</Text>
-                </View>
-              )}
-            </View>
-            <TouchableOpacity style={styles.voltarBtn} onPress={() => router.back()}>
-              <Text style={styles.voltarBtnText}>Continuar trilha 🗺️</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+      {completionState && (
+        <GameCompletionModal state={completionState} onContinue={() => router.back()} />
       )}
     </SafeAreaView>
   );

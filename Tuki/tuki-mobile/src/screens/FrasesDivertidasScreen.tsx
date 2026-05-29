@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, withSequence, Easing, FadeIn, ZoomIn, BounceIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { playSound } from '../services/sound';
-import ConfettiEffect from '../components/ConfettiEffect';
-import { obterPerfilAtivo, salvarPerfilAtivo } from '../services/storage';
-import { registrarProgresso, buscarUsuarioPorId } from '../services/api';
+import { useGameCompletion } from '../hooks/useGameCompletion';
+import GameCompletionModal from '../components/GameCompletionModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -49,6 +48,7 @@ const CHALLENGES = [
 
 export default function FrasesDivertidasScreen() {
   const router = useRouter();
+  const { completionState, completeGame } = useGameCompletion(5);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
   const [disabled, setDisabled] = useState(false);
@@ -61,26 +61,7 @@ export default function FrasesDivertidasScreen() {
 
   useEffect(() => {
     if (isFinished) {
-      playSound('victory');
-      const salvar = async () => {
-        try {
-          const perfil = await obterPerfilAtivo();
-          if (perfil) {
-            await registrarProgresso({
-              idUsuario: perfil.id,
-              idLicao: 5, // ID for Frases Divertidas
-              pontuacao: CHALLENGES.length,
-              tentativas: 1,
-              concluida: true,
-            });
-            const atualizado = await buscarUsuarioPorId(perfil.id);
-            await salvarPerfilAtivo(atualizado);
-          }
-        } catch (e) {
-          console.error(e);
-        }
-      };
-      salvar();
+      completeGame(CHALLENGES.length, CHALLENGES.length);
     }
   }, [isFinished]);
 
@@ -127,34 +108,6 @@ export default function FrasesDivertidasScreen() {
   const mascotStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: mascotAnim.value }]
   }));
-
-  if (isFinished) {
-    return (
-      <SafeAreaView style={styles.finishedSafeArea}>
-        <ConfettiEffect />
-        <View style={styles.finishedContainer}>
-          <Image
-            source={require('../../assets/images/happy-tuki.png')}
-            style={styles.finishedMascot}
-            resizeMode="contain"
-          />
-          <Text style={styles.finishedTitle}>Excelente!</Text>
-          <Text style={styles.finishedSubtitle}>
-            Você construiu frases muito divertidas! 🎈✏️
-          </Text>
-          <TouchableOpacity
-            style={styles.backButtonLarge}
-            onPress={() => {
-              playSound('click');
-              router.back();
-            }}
-          >
-            <Text style={styles.backButtonText}>Voltar para a Trilha</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -222,6 +175,9 @@ export default function FrasesDivertidasScreen() {
           })}
         </View>
       </View>
+      {completionState && (
+        <GameCompletionModal state={completionState} onContinue={() => router.back()} />
+      )}
     </SafeAreaView>
   );
 }

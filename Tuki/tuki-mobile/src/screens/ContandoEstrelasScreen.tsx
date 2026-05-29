@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -6,15 +6,10 @@ import {
     TouchableOpacity,
     SafeAreaView,
     Dimensions,
-    Image,
+    ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Sparkles } from 'lucide-react-native';
-import {
-    Gesture,
-    GestureDetector,
-    GestureHandlerRootView,
-} from 'react-native-gesture-handler';
+import { ChevronLeft, RefreshCw } from 'lucide-react-native';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -22,90 +17,92 @@ import Animated, {
     withTiming,
     withSequence,
     withRepeat,
-    runOnJS,
+    cancelAnimation,
     Easing,
     FadeIn,
     FadeOut,
     BounceIn,
     ZoomIn,
+    runOnJS,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { obterPerfilAtivo, salvarPerfilAtivo } from '../services/storage';
-import { registrarProgresso, buscarUsuarioPorId } from '../services/api';
 import { playSound } from '../services/sound';
 import ConfettiEffect from '../components/ConfettiEffect';
+import { useGameCompletion } from '../hooks/useGameCompletion';
+import GameCompletionModal from '../components/GameCompletionModal';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// ─── Exercícios de soma ──────────────────────────────────────────────────────
+// ─── Exercícios ───────────────────────────────────────────────────────────────
 interface Exercise {
     leftCount: number;
     rightCount: number;
     leftColor: string;
     rightColor: string;
+    leftEmoji: string;
+    rightEmoji: string;
     announcement: string;
 }
 
 const EXERCISES: Exercise[] = [
-    { leftCount: 2, rightCount: 3, leftColor: '#60a5fa', rightColor: '#fbbf24', announcement: 'Isso! Cinco estrelas! ⭐' },
-    { leftCount: 1, rightCount: 4, leftColor: '#f472b6', rightColor: '#34d399', announcement: 'Incrível! Cinco estrelas! ⭐' },
-    { leftCount: 3, rightCount: 3, leftColor: '#a78bfa', rightColor: '#fb923c', announcement: 'Seis estrelas! Que demais! ⭐' },
-    { leftCount: 2, rightCount: 2, leftColor: '#38bdf8', rightColor: '#f87171', announcement: 'Quatro estrelas! Parabéns! ⭐' },
-    { leftCount: 4, rightCount: 3, leftColor: '#facc15', rightColor: '#818cf8', announcement: 'Sete estrelas! Arrasou! ⭐' },
+    { leftCount: 2, rightCount: 3, leftColor: '#60a5fa', rightColor: '#fbbf24', leftEmoji: '🔵', rightEmoji: '⭐', announcement: 'Isso! 2 + 3 = 5 estrelas! 🎉' },
+    { leftCount: 1, rightCount: 4, leftColor: '#f472b6', rightColor: '#34d399', leftEmoji: '🌸', rightEmoji: '🟢', announcement: 'Incrível! 1 + 4 = 5! ⭐' },
+    { leftCount: 3, rightCount: 3, leftColor: '#a78bfa', rightColor: '#fb923c', leftEmoji: '💜', rightEmoji: '🟠', announcement: '3 + 3 = 6! Que demais! 🚀' },
+    { leftCount: 2, rightCount: 2, leftColor: '#38bdf8', rightColor: '#f87171', leftEmoji: '💎', rightEmoji: '❤️', announcement: '2 + 2 = 4! Parabéns! ⭐' },
+    { leftCount: 4, rightCount: 3, leftColor: '#facc15', rightColor: '#818cf8', leftEmoji: '⭐', rightEmoji: '🔮', announcement: '4 + 3 = 7! Arrasou! 🌟' },
 ];
 
-// ─── Layout constants ────────────────────────────────────────────────────────
-const BLACK_HOLE_SIZE = 130;
-const BLACK_HOLE_CENTER_X = SCREEN_WIDTH / 2;
-const BLACK_HOLE_CENTER_Y = SCREEN_HEIGHT * 0.42;
-const DROP_RADIUS = 72;
+const STAR_SIZE = 60;
+const GAP = 12;
 
-const STAR_SIZE = 52;
-
-// ─── Main Screen ─────────────────────────────────────────────────────────────
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function ContandoEstrelasScreen() {
     const router = useRouter();
+    const { completionState, completeGame } = useGameCompletion(30);
 
     const [exerciseIndex, setExerciseIndex] = useState(0);
     const [score, setScore] = useState(0);
-    const [droppedIds, setDroppedIds] = useState<string[]>([]);
+    const [collectedIds, setCollectedIds] = useState<Set<string>>(new Set());
     const [showResult, setShowResult] = useState(false);
     const [resultNumber, setResultNumber] = useState(0);
     const [isFinished, setIsFinished] = useState(false);
     const [isTransitioning, setIsTransitioning] = useState(false);
 
     const progressPercent = useSharedValue(0);
-    const blackHoleScale = useSharedValue(1);
     const blackHolePulse = useSharedValue(1);
+    const blackHoleScale = useSharedValue(1);
     const resultScale = useSharedValue(0);
 
     const exercise = EXERCISES[exerciseIndex];
     const totalStars = exercise.leftCount + exercise.rightCount;
-    const droppedCount = droppedIds.length;
+    const collectedCount = collectedIds.size;
 
-    // Pulse animation for black hole
+    // ─── Pulse animation do buraco negro ─────────────────────────────────────
     useEffect(() => {
+        cancelAnimation(blackHolePulse);
+        blackHolePulse.value = 1;
         blackHolePulse.value = withRepeat(
             withSequence(
-                withTiming(1.06, { duration: 900, easing: Easing.inOut(Easing.ease) }),
-                withTiming(1.0, { duration: 900, easing: Easing.inOut(Easing.ease) })
+                withTiming(1.07, { duration: 850, easing: Easing.inOut(Easing.ease) }),
+                withTiming(1.0, { duration: 850, easing: Easing.inOut(Easing.ease) })
             ),
             -1,
             true
         );
+        return () => cancelAnimation(blackHolePulse);
     }, [exerciseIndex]);
 
-    // Update progress bar
+    // ─── Progress bar ─────────────────────────────────────────────────────────
     useEffect(() => {
-        progressPercent.value = withSpring((exerciseIndex / EXERCISES.length) * 100, { damping: 15 });
+        progressPercent.value = withSpring((exerciseIndex / EXERCISES.length) * 100, { damping: 14 });
     }, [exerciseIndex]);
 
-    // Check if all stars dropped
+    // ─── Verifica se todas as estrelas foram coletadas ────────────────────────
     useEffect(() => {
-        if (droppedCount === totalStars && totalStars > 0 && !showResult && !isTransitioning) {
+        if (collectedCount === totalStars && totalStars > 0 && !showResult && !isTransitioning) {
             setIsTransitioning(true);
-            // Burst effect on black hole
-            blackHoleScale.value = withSequence(withSpring(1.35), withSpring(1.0));
+
+            blackHoleScale.value = withSequence(withSpring(1.4), withSpring(1.0));
             playSound('correct');
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
@@ -114,57 +111,47 @@ export default function ContandoEstrelasScreen() {
                 setShowResult(true);
                 resultScale.value = withSpring(1, { damping: 10 });
                 setScore((s) => s + 1);
-            }, 600);
+            }, 500);
 
             setTimeout(() => {
                 setShowResult(false);
                 resultScale.value = 0;
+
                 if (exerciseIndex < EXERCISES.length - 1) {
                     setExerciseIndex((i) => i + 1);
-                    setDroppedIds([]);
+                    setCollectedIds(new Set());
                     setIsTransitioning(false);
                 } else {
                     setIsFinished(true);
                 }
-            }, 3200);
+            }, 3000);
         }
-    }, [droppedCount, totalStars]);
+    }, [collectedCount, totalStars]);
 
-    // Save progress on finish
+    // ─── Salva progresso ao terminar ──────────────────────────────────────────
     useEffect(() => {
-        if (isFinished) {
-            playSound('victory');
-            const salvar = async () => {
-                try {
-                    const perfil = await obterPerfilAtivo();
-                    if (perfil) {
-                        await registrarProgresso({
-                            idUsuario: perfil.id,
-                            idLicao: 30, // Contando Estrelas – trilha-matematica
-                            pontuacao: score,
-                            tentativas: 1,
-                            concluida: true,
-                        });
-                        const atualizado = await buscarUsuarioPorId(perfil.id);
-                        await salvarPerfilAtivo(atualizado);
-                    }
-                } catch (e) {
-                    console.error('Erro ao registrar progresso de Contando Estrelas:', e);
-                }
-            };
-            salvar();
-        }
+        if (!isFinished) return;
+        completeGame(score, EXERCISES.length);
     }, [isFinished]);
 
-    const handleDropStar = (id: string) => {
-        setDroppedIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
-    };
+    const handleTapStar = useCallback((id: string) => {
+        if (isTransitioning) return;
+        setCollectedIds((prev) => {
+            if (prev.has(id)) return prev;
+            const next = new Set(prev);
+            next.add(id);
+            return next;
+        });
+        playSound('click');
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }, [isTransitioning]);
 
     const handleReset = () => {
         playSound('click');
+        cancelAnimation(blackHolePulse);
         setExerciseIndex(0);
         setScore(0);
-        setDroppedIds([]);
+        setCollectedIds(new Set());
         setShowResult(false);
         setIsFinished(false);
         setIsTransitioning(false);
@@ -172,12 +159,12 @@ export default function ContandoEstrelasScreen() {
         progressPercent.value = 0;
     };
 
-    const blackHoleAnimatedStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: blackHoleScale.value * blackHolePulse.value }],
+    const blackHoleStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: blackHolePulse.value * blackHoleScale.value }],
     }));
 
     const progressBarStyle = useAnimatedStyle(() => ({
-        width: `${progressPercent.value}%`,
+        width: progressPercent.value + '%' as any,
     }));
 
     const resultStyle = useAnimatedStyle(() => ({
@@ -185,116 +172,108 @@ export default function ContandoEstrelasScreen() {
         opacity: resultScale.value,
     }));
 
-    // ─── Stars for this exercise ─────────────────────────────────────────────
+    // ─── Build stars list ─────────────────────────────────────────────────────
     const buildStars = () => {
-        const stars: { id: string; side: 'left' | 'right'; color: string }[] = [];
+        const stars: { id: string; side: 'left' | 'right'; color: string; emoji: string }[] = [];
         for (let i = 0; i < exercise.leftCount; i++) {
-            stars.push({ id: `L-${exerciseIndex}-${i}`, side: 'left', color: exercise.leftColor });
+            stars.push({ id: `L-${exerciseIndex}-${i}`, side: 'left', color: exercise.leftColor, emoji: exercise.leftEmoji });
         }
         for (let i = 0; i < exercise.rightCount; i++) {
-            stars.push({ id: `R-${exerciseIndex}-${i}`, side: 'right', color: exercise.rightColor });
+            stars.push({ id: `R-${exerciseIndex}-${i}`, side: 'right', color: exercise.rightColor, emoji: exercise.rightEmoji });
         }
         return stars;
     };
-
     const stars = buildStars();
 
-    // ─── Finished Screen ─────────────────────────────────────────────────────
-    if (isFinished) {
-        return (
-            <SafeAreaView style={styles.finishedSafeArea}>
-                <ConfettiEffect />
-                <View style={styles.finishedContainer}>
-                    <Image
-                        source={require('../../assets/images/happy-tuki.png')}
-                        style={styles.finishedMascot}
-                        resizeMode="contain"
-                    />
-                    <Text style={styles.finishedTitle}>Incrível!</Text>
-                    <Text style={styles.finishedSubtitle}>
-                        Você ajudou o Tuki a contar todas as estrelas do espaço! 🚀🌟
-                    </Text>
+    // ─── Jogo principal ───────────────────────────────────────────────────────
+    const leftStars = stars.filter((s) => s.side === 'left');
+    const rightStars = stars.filter((s) => s.side === 'right');
 
-                    <View style={styles.starsSummaryContainer}>
-                        <Text style={styles.scoreText}>Pontuação: {score} de {EXERCISES.length}</Text>
-                        <View style={styles.starsRewardBadge}>
-                            <Text style={styles.starsRewardText}>⭐ +40 Estrelas obtidas!</Text>
-                        </View>
-                    </View>
-
-                    <TouchableOpacity
-                        style={styles.backButtonLarge}
-                        onPress={() => { playSound('click'); router.back(); }}
-                    >
-                        <Text style={styles.backButtonText}>Voltar para a Trilha</Text>
-                    </TouchableOpacity>
-                </View>
-            </SafeAreaView>
-        );
-    }
-
-    // ─── Main Game ────────────────────────────────────────────────────────────
     return (
-        <GestureHandlerRootView style={{ flex: 1 }}>
-            <SafeAreaView style={styles.container}>
-                {showResult && <ConfettiEffect />}
+        <SafeAreaView style={styles.container}>
+            {showResult && <ConfettiEffect />}
 
-                {/* Header */}
-                <View style={styles.header}>
-                    <TouchableOpacity
-                        onPress={() => { playSound('click'); router.back(); }}
-                        style={styles.backButton}
-                    >
-                        <ChevronLeft size={28} color="#fff" />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Contando Estrelas</Text>
-                    <TouchableOpacity onPress={handleReset} style={styles.resetBadge}>
-                        <Sparkles size={16} color="#fff" />
-                        <Text style={styles.resetBadgeText}>Reset</Text>
-                    </TouchableOpacity>
+            {/* Header */}
+            <View style={styles.header}>
+                <TouchableOpacity
+                    onPress={() => { playSound('click'); router.back(); }}
+                    style={styles.backButton}
+                >
+                    <ChevronLeft size={26} color="#fff" />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>Contando Estrelas</Text>
+                <TouchableOpacity onPress={handleReset} style={styles.resetBadge}>
+                    <RefreshCw size={15} color="#fff" />
+                    <Text style={styles.resetBadgeText}>Reset</Text>
+                </TouchableOpacity>
+            </View>
+
+            {/* Progress Bar */}
+            <View style={styles.progressArea}>
+                <View style={styles.progressBarBg}>
+                    <Animated.View style={[styles.progressBarFill, progressBarStyle]} />
+                </View>
+                <Text style={styles.progressText}>{exerciseIndex}/{EXERCISES.length}</Text>
+            </View>
+
+            {/* Equation Row */}
+            <View style={styles.equationRow}>
+                <View style={[styles.equationBox, { borderColor: exercise.leftColor }]}>
+                    <Text style={[styles.equationNumber, { color: exercise.leftColor }]}>
+                        {exercise.leftCount}
+                    </Text>
+                </View>
+                <Text style={styles.equationOp}>+</Text>
+                <View style={[styles.equationBox, { borderColor: exercise.rightColor }]}>
+                    <Text style={[styles.equationNumber, { color: exercise.rightColor }]}>
+                        {exercise.rightCount}
+                    </Text>
+                </View>
+                <Text style={styles.equationOp}>=</Text>
+                <View style={[styles.equationBox, styles.equationResultBox]}>
+                    {showResult ? (
+                        <Animated.Text style={[styles.equationNumber, styles.equationResultNumber, resultStyle]}>
+                            {resultNumber}
+                        </Animated.Text>
+                    ) : (
+                        <Text style={styles.equationBlank}>?</Text>
+                    )}
+                </View>
+            </View>
+
+            {/* Hint text */}
+            <Animated.View entering={FadeIn} style={styles.hintBanner}>
+                <Text style={styles.hintText}>
+                    {isTransitioning
+                        ? exercise.announcement
+                        : `👆 Toque nas estrelas para jogá-las no Buraco Negro! (${collectedCount}/${totalStars})`}
+                </Text>
+            </Animated.View>
+
+            {/* Main game area */}
+            <View style={styles.gameArea}>
+                {/* Coluna esquerda */}
+                <View style={styles.sideColumn}>
+                    <Text style={[styles.sideLabel, { color: exercise.leftColor }]}>
+                        {exercise.leftCount} estrelas
+                    </Text>
+                    <View style={styles.starsGrid}>
+                        {leftStars.map((star) => (
+                            <StarTile
+                                key={star.id}
+                                id={star.id}
+                                color={star.color}
+                                emoji={star.emoji}
+                                isCollected={collectedIds.has(star.id)}
+                                onTap={handleTapStar}
+                            />
+                        ))}
+                    </View>
                 </View>
 
-                {/* Progress Bar */}
-                <View style={styles.progressArea}>
-                    <View style={styles.progressBarBg}>
-                        <Animated.View style={[styles.progressBarFill, progressBarStyle]} />
-                    </View>
-                    <Text style={styles.progressText}>{exerciseIndex}/{EXERCISES.length}</Text>
-                </View>
-
-                {/* Equation display */}
-                <View style={styles.equationRow}>
-                    <View style={[styles.equationBox, { borderColor: exercise.leftColor }]}>
-                        <Text style={[styles.equationNumber, { color: exercise.leftColor }]}>
-                            {exercise.leftCount}
-                        </Text>
-                    </View>
-                    <Text style={styles.equationPlus}>+</Text>
-                    <View style={[styles.equationBox, { borderColor: exercise.rightColor }]}>
-                        <Text style={[styles.equationNumber, { color: exercise.rightColor }]}>
-                            {exercise.rightCount}
-                        </Text>
-                    </View>
-                    <Text style={styles.equationEquals}>=</Text>
-                    <View style={[styles.equationBox, styles.equationResultBox]}>
-                        {showResult ? (
-                            <Animated.Text style={[styles.equationNumber, styles.equationResultNumber, resultStyle]}>
-                                {resultNumber}
-                            </Animated.Text>
-                        ) : (
-                            <Text style={styles.equationBlank}>?</Text>
-                        )}
-                    </View>
-                </View>
-
-                {/* Game area */}
-                <View style={styles.gameArea} pointerEvents="box-none">
-                    {/* Black Hole */}
-                    <Animated.View
-                        style={[styles.blackHoleWrapper, blackHoleAnimatedStyle]}
-                        pointerEvents="none"
-                    >
-                        {/* Outer glow rings */}
+                {/* Buraco Negro central */}
+                <View style={styles.centerColumn}>
+                    <Animated.View style={[styles.blackHoleWrapper, blackHoleStyle]}>
                         <View style={styles.blackHoleRing3} />
                         <View style={styles.blackHoleRing2} />
                         <View style={styles.blackHoleRing1} />
@@ -304,183 +283,102 @@ export default function ContandoEstrelasScreen() {
                                     {resultNumber}
                                 </Animated.Text>
                             ) : (
-                                <Text style={styles.blackHoleHintText}>
-                                    {droppedCount}/{totalStars}
+                                <Text style={styles.blackHoleCountText}>
+                                    {collectedCount}/{totalStars}
                                 </Text>
                             )}
                         </View>
                     </Animated.View>
-
-                    {/* Draggable stars */}
-                    {stars.map((star, index) => {
-                        const isDropped = droppedIds.includes(star.id);
-                        return (
-                            <StarBubble
-                                key={star.id}
-                                id={star.id}
-                                side={star.side}
-                                color={star.color}
-                                index={index}
-                                sideIndex={
-                                    star.side === 'left'
-                                        ? stars.filter((s) => s.side === 'left').indexOf(star)
-                                        : stars.filter((s) => s.side === 'right').indexOf(star)
-                                }
-                                sideTotal={
-                                    star.side === 'left' ? exercise.leftCount : exercise.rightCount
-                                }
-                                isDropped={isDropped}
-                                onDropSuccess={handleDropStar}
-                            />
-                        );
-                    })}
-
-                    {/* Announcement balloon */}
-                    {showResult && (
-                        <Animated.View
-                            entering={BounceIn}
-                            exiting={FadeOut}
-                            style={styles.announcementBalloon}
-                        >
-                            <Text style={styles.announcementText}>{exercise.announcement}</Text>
-                        </Animated.View>
-                    )}
+                    <Text style={styles.blackHoleLabel}>Buraco{'\n'}Negro</Text>
                 </View>
 
-                {/* Mascot hint */}
-                {!showResult && (
-                    <Animated.View entering={FadeIn} style={styles.mascotBalloon}>
-                        <Text style={styles.mascotText}>
-                            🚀 Arraste todas as estrelas para o Buraco Negro Mágico!
-                        </Text>
-                    </Animated.View>
-                )}
-            </SafeAreaView>
-        </GestureHandlerRootView>
+                {/* Coluna direita */}
+                <View style={styles.sideColumn}>
+                    <Text style={[styles.sideLabel, { color: exercise.rightColor }]}>
+                        {exercise.rightCount} estrelas
+                    </Text>
+                    <View style={styles.starsGrid}>
+                        {rightStars.map((star) => (
+                            <StarTile
+                                key={star.id}
+                                id={star.id}
+                                color={star.color}
+                                emoji={star.emoji}
+                                isCollected={collectedIds.has(star.id)}
+                                onTap={handleTapStar}
+                            />
+                        ))}
+                    </View>
+                </View>
+            </View>
+
+            {/* Announcement overlay */}
+            {showResult && (
+                <Animated.View
+                    entering={BounceIn}
+                    exiting={FadeOut}
+                    style={styles.announcementBalloon}
+                >
+                    <Text style={styles.announcementText}>{exercise.announcement}</Text>
+                </Animated.View>
+            )}
+            {completionState && (
+                <GameCompletionModal state={completionState} onContinue={() => router.back()} />
+            )}
+        </SafeAreaView>
     );
 }
 
-// ─── Draggable Star Component ─────────────────────────────────────────────────
-interface StarBubbleProps {
+// ─── StarTile Component ───────────────────────────────────────────────────────
+interface StarTileProps {
     id: string;
-    side: 'left' | 'right';
     color: string;
-    index: number;
-    sideIndex: number;
-    sideTotal: number;
-    isDropped: boolean;
-    onDropSuccess: (id: string) => void;
+    emoji: string;
+    isCollected: boolean;
+    onTap: (id: string) => void;
 }
 
-function StarBubble({
-    id,
-    side,
-    color,
-    sideIndex,
-    sideTotal,
-    isDropped,
-    onDropSuccess,
-}: StarBubbleProps) {
-    // Calculate starting position
-    const sideX = side === 'left' ? SCREEN_WIDTH * 0.1 : SCREEN_WIDTH * 0.72;
-    const totalHeight = sideTotal * (STAR_SIZE + 18);
-    const startY = BLACK_HOLE_CENTER_Y - totalHeight / 2 + sideIndex * (STAR_SIZE + 18);
-
-    const translateX = useSharedValue(0);
-    const translateY = useSharedValue(0);
+function StarTile({ id, color, emoji, isCollected, onTap }: StarTileProps) {
     const scale = useSharedValue(1);
     const opacity = useSharedValue(1);
 
-    // Bob animation
-    const bob = useSharedValue(0);
-
     useEffect(() => {
-        if (!isDropped) {
-            bob.value = withRepeat(
-                withSequence(
-                    withTiming(10, { duration: 1400 + sideIndex * 180, easing: Easing.inOut(Easing.ease) }),
-                    withTiming(-10, { duration: 1400 + sideIndex * 180, easing: Easing.inOut(Easing.ease) })
-                ),
-                -1,
-                true
-            );
+        if (isCollected) {
+            scale.value = withSequence(withSpring(1.4), withTiming(0, { duration: 300 }));
+            opacity.value = withTiming(0, { duration: 350 });
         } else {
-            bob.value = 0;
+            scale.value = 1;
+            opacity.value = 1;
         }
-    }, [isDropped]);
-
-    // Snap-to-center when dropped
-    useEffect(() => {
-        if (isDropped) {
-            translateX.value = withSpring(BLACK_HOLE_CENTER_X - sideX - STAR_SIZE / 2);
-            translateY.value = withSpring(BLACK_HOLE_CENTER_Y - startY - STAR_SIZE / 2);
-            scale.value = withSequence(withSpring(1.4), withTiming(0, { duration: 350 }));
-            opacity.value = withTiming(0, { duration: 400 });
-        }
-    }, [isDropped]);
-
-    const dragGesture = Gesture.Pan()
-        .onStart(() => {
-            if (isDropped) return;
-            scale.value = withSpring(1.3);
-            runOnJS(playSound)('click');
-        })
-        .onUpdate((e) => {
-            if (isDropped) return;
-            translateX.value = e.translationX;
-            translateY.value = e.translationY;
-        })
-        .onEnd((e) => {
-            if (isDropped) return;
-
-            const cx = sideX + STAR_SIZE / 2 + e.translationX;
-            const cy = startY + STAR_SIZE / 2 + e.translationY;
-            const dist = Math.sqrt(
-                Math.pow(cx - BLACK_HOLE_CENTER_X, 2) + Math.pow(cy - BLACK_HOLE_CENTER_Y, 2)
-            );
-
-            if (dist < DROP_RADIUS) {
-                runOnJS(onDropSuccess)(id);
-                runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
-            } else {
-                translateX.value = withSpring(0);
-                translateY.value = withSpring(0);
-                scale.value = withSpring(1);
-                runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
-            }
-        });
+    }, [isCollected]);
 
     const animStyle = useAnimatedStyle(() => ({
-        transform: [
-            { translateX: translateX.value },
-            { translateY: translateY.value + bob.value },
-            { scale: scale.value },
-        ] as any,
+        transform: [{ scale: scale.value }],
         opacity: opacity.value,
     }));
 
     return (
-        <GestureDetector gesture={dragGesture}>
+        <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => !isCollected && onTap(id)}
+            disabled={isCollected}
+        >
             <Animated.View
-                pointerEvents={isDropped ? 'none' : 'auto'}
                 style={[
-                    styles.starBubble,
+                    styles.starTile,
+                    { backgroundColor: color, shadowColor: color },
                     animStyle,
-                    {
-                        left: sideX,
-                        top: startY,
-                        backgroundColor: color,
-                        shadowColor: color,
-                    },
                 ]}
             >
-                <Text style={styles.starEmoji}>⭐</Text>
+                <Text style={styles.starEmoji}>{emoji}</Text>
             </Animated.View>
-        </GestureDetector>
+        </TouchableOpacity>
     );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
+const BH_SIZE = 110;
+
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -489,19 +387,19 @@ const styles = StyleSheet.create({
 
     // Header
     header: {
-        paddingHorizontal: 20,
-        paddingTop: 40,
-        paddingBottom: 18,
+        paddingHorizontal: 18,
+        paddingTop: 36,
+        paddingBottom: 16,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         backgroundColor: '#12174a',
-        borderBottomLeftRadius: 28,
-        borderBottomRightRadius: 28,
+        borderBottomLeftRadius: 24,
+        borderBottomRightRadius: 24,
         elevation: 6,
         shadowColor: '#6366f1',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.4,
+        shadowOpacity: 0.35,
         shadowRadius: 8,
     },
     backButton: {
@@ -511,17 +409,17 @@ const styles = StyleSheet.create({
     },
     headerTitle: {
         color: '#e0e7ff',
-        fontSize: 21,
+        fontSize: 19,
         fontWeight: 'bold',
-        letterSpacing: 0.4,
+        letterSpacing: 0.3,
     },
     resetBadge: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: 'rgba(255,255,255,0.12)',
-        paddingHorizontal: 12,
+        paddingHorizontal: 10,
         paddingVertical: 6,
-        borderRadius: 16,
+        borderRadius: 14,
         gap: 4,
     },
     resetBadgeText: {
@@ -534,13 +432,13 @@ const styles = StyleSheet.create({
     progressArea: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 22,
+        paddingHorizontal: 20,
         paddingTop: 14,
-        gap: 12,
+        gap: 10,
     },
     progressBarBg: {
         flex: 1,
-        height: 14,
+        height: 13,
         backgroundColor: '#1e2557',
         borderRadius: 10,
         overflow: 'hidden',
@@ -553,9 +451,11 @@ const styles = StyleSheet.create({
         backgroundColor: '#818cf8',
     },
     progressText: {
-        fontSize: 15,
+        fontSize: 14,
         fontWeight: 'bold',
         color: '#818cf8',
+        minWidth: 36,
+        textAlign: 'right',
     },
 
     // Equation
@@ -564,13 +464,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         gap: 8,
-        marginTop: 18,
-        marginBottom: 4,
-        paddingHorizontal: 24,
+        marginTop: 16,
+        paddingHorizontal: 20,
     },
     equationBox: {
-        width: 54,
-        height: 54,
+        width: 52,
+        height: 52,
         borderRadius: 14,
         borderWidth: 2.5,
         backgroundColor: '#12174a',
@@ -578,16 +477,11 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     equationNumber: {
+        fontSize: 24,
+        fontWeight: '900',
+    },
+    equationOp: {
         fontSize: 26,
-        fontWeight: '900',
-    },
-    equationPlus: {
-        fontSize: 28,
-        fontWeight: '900',
-        color: '#94a3b8',
-    },
-    equationEquals: {
-        fontSize: 28,
         fontWeight: '900',
         color: '#94a3b8',
     },
@@ -604,102 +498,150 @@ const styles = StyleSheet.create({
         color: '#4b5563',
     },
 
-    // Game Area
+    // Hint
+    hintBanner: {
+        marginHorizontal: 20,
+        marginTop: 12,
+        backgroundColor: '#12174a',
+        borderRadius: 14,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderWidth: 1,
+        borderColor: '#1e2557',
+    },
+    hintText: {
+        color: '#94a3b8',
+        fontSize: 13,
+        fontWeight: '600',
+        textAlign: 'center',
+        lineHeight: 20,
+    },
+
+    // Game Area (three columns)
     gameArea: {
         flex: 1,
-        position: 'relative',
-    },
-
-    // Black Hole
-    blackHoleWrapper: {
-        position: 'absolute',
-        left: BLACK_HOLE_CENTER_X - BLACK_HOLE_SIZE / 2,
-        top: BLACK_HOLE_CENTER_Y - BLACK_HOLE_SIZE / 2,
-        width: BLACK_HOLE_SIZE,
-        height: BLACK_HOLE_SIZE,
+        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        gap: 6,
     },
-    blackHoleRing3: {
-        position: 'absolute',
-        width: BLACK_HOLE_SIZE + 60,
-        height: BLACK_HOLE_SIZE + 60,
-        borderRadius: (BLACK_HOLE_SIZE + 60) / 2,
-        backgroundColor: 'rgba(99, 102, 241, 0.08)',
-    },
-    blackHoleRing2: {
-        position: 'absolute',
-        width: BLACK_HOLE_SIZE + 30,
-        height: BLACK_HOLE_SIZE + 30,
-        borderRadius: (BLACK_HOLE_SIZE + 30) / 2,
-        backgroundColor: 'rgba(99, 102, 241, 0.14)',
-    },
-    blackHoleRing1: {
-        position: 'absolute',
-        width: BLACK_HOLE_SIZE + 10,
-        height: BLACK_HOLE_SIZE + 10,
-        borderRadius: (BLACK_HOLE_SIZE + 10) / 2,
-        backgroundColor: 'rgba(99, 102, 241, 0.22)',
-        borderWidth: 2,
-        borderColor: 'rgba(129, 140, 248, 0.3)',
-    },
-    blackHoleCore: {
-        width: BLACK_HOLE_SIZE,
-        height: BLACK_HOLE_SIZE,
-        borderRadius: BLACK_HOLE_SIZE / 2,
-        backgroundColor: '#000',
-        borderWidth: 3,
-        borderColor: '#6366f1',
+    sideColumn: {
+        flex: 1,
         alignItems: 'center',
+        gap: 8,
+    },
+    sideLabel: {
+        fontSize: 12,
+        fontWeight: '800',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginBottom: 4,
+    },
+    starsGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
         justifyContent: 'center',
-        elevation: 12,
-        shadowColor: '#6366f1',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.8,
-        shadowRadius: 18,
+        gap: GAP,
     },
-    blackHoleHintText: {
-        color: '#6366f1',
-        fontSize: 20,
-        fontWeight: 'bold',
-    },
-    blackHoleResultText: {
-        color: '#fbbf24',
-        fontSize: 46,
-        fontWeight: '900',
-    },
-
-    // Stars
-    starBubble: {
-        position: 'absolute',
+    starTile: {
         width: STAR_SIZE,
         height: STAR_SIZE,
         borderRadius: STAR_SIZE / 2,
         alignItems: 'center',
         justifyContent: 'center',
         elevation: 6,
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0, height: 3 },
         shadowOpacity: 0.5,
         shadowRadius: 6,
-        zIndex: 10,
     },
     starEmoji: {
         fontSize: 28,
     },
 
-    // Announcement balloon
+    // Center column — Black Hole
+    centerColumn: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+    },
+    blackHoleWrapper: {
+        width: BH_SIZE,
+        height: BH_SIZE,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    blackHoleRing3: {
+        position: 'absolute',
+        width: BH_SIZE + 52,
+        height: BH_SIZE + 52,
+        borderRadius: (BH_SIZE + 52) / 2,
+        backgroundColor: 'rgba(99,102,241,0.07)',
+    },
+    blackHoleRing2: {
+        position: 'absolute',
+        width: BH_SIZE + 26,
+        height: BH_SIZE + 26,
+        borderRadius: (BH_SIZE + 26) / 2,
+        backgroundColor: 'rgba(99,102,241,0.13)',
+    },
+    blackHoleRing1: {
+        position: 'absolute',
+        width: BH_SIZE + 8,
+        height: BH_SIZE + 8,
+        borderRadius: (BH_SIZE + 8) / 2,
+        backgroundColor: 'rgba(99,102,241,0.20)',
+        borderWidth: 2,
+        borderColor: 'rgba(129,140,248,0.28)',
+    },
+    blackHoleCore: {
+        width: BH_SIZE,
+        height: BH_SIZE,
+        borderRadius: BH_SIZE / 2,
+        backgroundColor: '#000',
+        borderWidth: 3,
+        borderColor: '#6366f1',
+        alignItems: 'center',
+        justifyContent: 'center',
+        elevation: 14,
+        shadowColor: '#6366f1',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.9,
+        shadowRadius: 20,
+    },
+    blackHoleCountText: {
+        color: '#6366f1',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    blackHoleResultText: {
+        color: '#fbbf24',
+        fontSize: 42,
+        fontWeight: '900',
+    },
+    blackHoleLabel: {
+        color: '#475569',
+        fontSize: 11,
+        fontWeight: '700',
+        textAlign: 'center',
+        textTransform: 'uppercase',
+        letterSpacing: 0.8,
+    },
+
+    // Announcement
     announcementBalloon: {
         position: 'absolute',
-        bottom: 30,
-        left: 24,
-        right: 24,
+        bottom: 24,
+        left: 20,
+        right: 20,
         backgroundColor: '#1e2557',
-        borderRadius: 22,
-        paddingHorizontal: 24,
-        paddingVertical: 18,
+        borderRadius: 20,
+        paddingHorizontal: 22,
+        paddingVertical: 16,
         borderWidth: 2.5,
         borderColor: '#6366f1',
-        elevation: 8,
+        elevation: 10,
         shadowColor: '#6366f1',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.5,
@@ -707,30 +649,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     announcementText: {
-        fontSize: 20,
+        fontSize: 19,
         fontWeight: '900',
         color: '#fbbf24',
         textAlign: 'center',
-    },
-
-    // Mascot
-    mascotBalloon: {
-        marginHorizontal: 22,
-        marginBottom: 22,
-        backgroundColor: '#12174a',
-        borderRadius: 18,
-        paddingHorizontal: 20,
-        paddingVertical: 13,
-        borderWidth: 2,
-        borderColor: '#1e2557',
-        elevation: 2,
-    },
-    mascotText: {
-        color: '#94a3b8',
-        fontSize: 15,
-        fontWeight: 'bold',
-        textAlign: 'center',
-        lineHeight: 22,
     },
 
     // Finished screen
@@ -746,35 +668,33 @@ const styles = StyleSheet.create({
     },
     finishedMascot: {
         width: '70%',
-        height: Dimensions.get('window').height * 0.32,
-        marginBottom: 20,
+        height: Dimensions.get('window').height * 0.3,
+        marginBottom: 16,
     },
     finishedTitle: {
-        fontSize: 36,
+        fontSize: 34,
         fontWeight: '900',
         color: '#10b981',
         marginBottom: 10,
     },
     finishedSubtitle: {
-        fontSize: 20,
+        fontSize: 18,
         color: '#64748b',
-        marginBottom: 40,
+        marginBottom: 32,
         textAlign: 'center',
-        lineHeight: 28,
+        lineHeight: 26,
     },
     starsSummaryContainer: {
         alignItems: 'center',
-        marginBottom: 40,
+        marginBottom: 36,
     },
     scoreText: {
-        fontSize: 24,
+        fontSize: 22,
         fontWeight: 'bold',
         color: '#1e293b',
-        marginBottom: 15,
+        marginBottom: 14,
     },
     starsRewardBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
         backgroundColor: '#fffbeb',
         borderColor: '#fef3c7',
         borderWidth: 2,
@@ -788,7 +708,7 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
     },
     starsRewardText: {
-        fontSize: 22,
+        fontSize: 20,
         fontWeight: 'bold',
         color: '#d97706',
     },

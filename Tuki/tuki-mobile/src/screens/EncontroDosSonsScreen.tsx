@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS, withTiming, withSequence, FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { obterPerfilAtivo, salvarPerfilAtivo } from '../services/storage';
-import { registrarProgresso, buscarUsuarioPorId } from '../services/api';
 import { playSound } from '../services/sound';
 import { useEffect } from 'react';
-import ConfettiEffect from '../components/ConfettiEffect';
+import { useGameCompletion } from '../hooks/useGameCompletion';
+import GameCompletionModal from '../components/GameCompletionModal';
 
 const { width } = Dimensions.get('window');
 
@@ -21,6 +20,7 @@ const CHALLENGES = [
 
 export default function EncontroDosSonsScreen() {
   const router = useRouter();
+  const { completionState, completeGame } = useGameCompletion(2);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showFusion, setShowFusion] = useState(false);
 
@@ -29,27 +29,7 @@ export default function EncontroDosSonsScreen() {
 
   useEffect(() => {
     if (isFinished) {
-      playSound('victory');
-      const salvarProgresso = async () => {
-        try {
-          const perfil = await obterPerfilAtivo();
-          if (perfil) {
-            await registrarProgresso({
-              idUsuario: perfil.id,
-              idLicao: 2, // Encontro de Sons
-              pontuacao: 3,
-              tentativas: 1,
-              concluida: true
-            });
-            // Atualiza o perfil ativo em cache para refletir na HomeScreen
-            const perfilAtualizado = await buscarUsuarioPorId(perfil.id);
-            await salvarPerfilAtivo(perfilAtualizado);
-          }
-        } catch (error) {
-          console.error("Erro ao registrar progresso de Encontro de Sons:", error);
-        }
-      };
-      salvarProgresso();
+      completeGame(CHALLENGES.length, CHALLENGES.length);
     }
   }, [isFinished]);
 
@@ -127,29 +107,6 @@ export default function EncontroDosSonsScreen() {
     ]
   }));
 
-  if (isFinished) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: '#FFFDF0' }]}>
-        <ConfettiEffect />
-        <View style={styles.finishedContainer}>
-          <Image source={require('../../assets/images/happy-tuki.png')} style={styles.finishedMascot} resizeMode="contain" />
-          <Text style={styles.finishedTitle}>Sensacional!</Text>
-          <Text style={styles.finishedSubtitle}>Você fundiu as letras e criou sons incríveis com o ímã mágico!</Text>
-
-          <View style={styles.starsSummaryContainer}>
-            <View style={styles.starsRewardBadge}>
-              <Text style={styles.starsRewardText}>⭐ +9 Estrelas!</Text>
-            </View>
-          </View>
-
-          <TouchableOpacity style={styles.backButtonLarge} onPress={() => { playSound('click'); router.back(); }}>
-            <Text style={styles.backButtonText}>Voltar para a Trilha</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView style={styles.container}>
@@ -201,6 +158,9 @@ export default function EncontroDosSonsScreen() {
             </View>
           </View>
         </View>
+      {completionState && (
+        <GameCompletionModal state={completionState} onContinue={() => router.back()} />
+      )}
       </SafeAreaView>
     </GestureHandlerRootView>
   );

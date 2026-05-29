@@ -1,180 +1,192 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions, Image } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+    View,
+    Text,
+    StyleSheet,
+    TouchableOpacity,
+    SafeAreaView,
+    Dimensions,
+} from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Star } from 'lucide-react-native';
-import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ChevronLeft, RefreshCw } from 'lucide-react-native';
 import Animated, {
-    useSharedValue, useAnimatedStyle, withSpring, withTiming,
-    withSequence, withRepeat, runOnJS, Easing, FadeIn, BounceIn, FadeOut, ZoomIn
+    useSharedValue,
+    useAnimatedStyle,
+    withSpring,
+    withTiming,
+    withSequence,
+    withRepeat,
+    cancelAnimation,
+    Easing,
+    BounceIn,
+    FadeOut,
+    ZoomIn,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { playSound } from '../services/sound';
 import ConfettiEffect from '../components/ConfettiEffect';
-import { obterPerfilAtivo, salvarPerfilAtivo } from '../services/storage';
-import { registrarProgresso, buscarUsuarioPorId } from '../services/api';
+import { useGameCompletion } from '../hooks/useGameCompletion';
+import GameCompletionModal from '../components/GameCompletionModal';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const CHALLENGES = [
-    { id: 1, groupA: 2, groupB: 3, total: 5, colorA: '#60a5fa', colorB: '#facc15' },
-    { id: 2, groupA: 1, groupB: 4, total: 5, colorA: '#f472b6', colorB: '#34d399' },
-    { id: 3, groupA: 3, groupB: 3, total: 6, colorA: '#a78bfa', colorB: '#fb923c' },
-    { id: 4, groupA: 4, groupB: 2, total: 6, colorA: '#38bdf8', colorB: '#f87171' },
+// ─── Desafios ────────────────────────────────────────────────────────────────
+interface Challenge {
+    id: number;
+    groupA: number;
+    groupB: number;
+    total: number;
+    colorA: string;
+    colorB: string;
+    emojiA: string;
+    emojiB: string;
+}
+
+const CHALLENGES: Challenge[] = [
+    { id: 1, groupA: 2, groupB: 3, total: 5, colorA: '#60a5fa', colorB: '#facc15', emojiA: '🔵', emojiB: '⭐' },
+    { id: 2, groupA: 1, groupB: 4, total: 5, colorA: '#f472b6', colorB: '#34d399', emojiA: '🌸', emojiB: '🟢' },
+    { id: 3, groupA: 3, groupB: 3, total: 6, colorA: '#a78bfa', colorB: '#fb923c', emojiA: '💜', emojiB: '🟠' },
+    { id: 4, groupA: 4, groupB: 2, total: 6, colorA: '#38bdf8', colorB: '#f87171', emojiA: '💎', emojiB: '❤️' },
 ];
 
-const NUMBER_WORDS = ["", "Uma...", "Duas...", "Três...", "Quatro...", "Cinco!", "Seis!", "Sete!", "Oito!", "Nove!", "Dez!"];
+const STAR_SIZE = 58;
+const GAP = 10;
 
-const PORTAL_SIZE = 150;
-const PORTAL_X = SCREEN_WIDTH / 2;
-const PORTAL_Y = SCREEN_HEIGHT * 0.48; // um pouco mais para baixo para dar espaço à equação
-const DROP_RADIUS = 90;
-const STAR_SIZE = 55;
-
+// ─── Tela Principal ──────────────────────────────────────────────────────────
 export default function SomaEspacialScreen() {
     const router = useRouter();
+    const { completionState, completeGame } = useGameCompletion(31);
     const [currentIndex, setCurrentIndex] = useState(0);
-    const [droppedIds, setDroppedIds] = useState<string[]>([]);
+    const [collectedIds, setCollectedIds] = useState<Set<string>>(new Set());
     const [showResult, setShowResult] = useState(false);
     const [isFinished, setIsFinished] = useState(false);
-    const [lastDroppedCount, setLastDroppedCount] = useState(0);
+    const [isTransitioning, setIsTransitioning] = useState(false);
 
     const challenge = CHALLENGES[currentIndex];
-    const isLevelDone = challenge ? droppedIds.length === challenge.total : false;
+    const totalStars = challenge.groupA + challenge.groupB;
+    const collectedCount = collectedIds.size;
 
     const portalPulse = useSharedValue(1);
-    const portalRotate = useSharedValue(0);
     const portalScale = useSharedValue(1);
+    const portalRotate = useSharedValue(0);
+    const resultScale = useSharedValue(0);
 
-    // Salvar progresso no banco ao finalizar
+    // ─── Animação do portal ──────────────────────────────────────────────────
     useEffect(() => {
-        if (isFinished) {
-            playSound('victory');
-            const salvar = async () => {
-                try {
-                    const perfil = await obterPerfilAtivo();
-                    if (perfil) {
-                        await registrarProgresso({
-                            idUsuario: perfil.id,
-                            idLicao: 31,
-                            pontuacao: CHALLENGES.length,
-                            tentativas: 1,
-                            concluida: true,
-                        });
-                        const atualizado = await buscarUsuarioPorId(perfil.id);
-                        await salvarPerfilAtivo(atualizado);
-                    }
-                } catch (e) {
-                    console.error('Erro ao registrar progresso de Soma Espacial:', e);
-                }
-            };
-            salvar();
-        }
-    }, [isFinished]);
-
-    // Animação de pulsação constante do portal
-    useEffect(() => {
+        cancelAnimation(portalPulse);
+        portalPulse.value = 1;
         portalPulse.value = withRepeat(
             withSequence(
-                withTiming(1.05, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
-                withTiming(1.0, { duration: 1200, easing: Easing.inOut(Easing.ease) })
+                withTiming(1.06, { duration: 1100, easing: Easing.inOut(Easing.ease) }),
+                withTiming(1.0, { duration: 1100, easing: Easing.inOut(Easing.ease) })
             ),
             -1,
             true
         );
+        return () => cancelAnimation(portalPulse);
     }, [currentIndex]);
 
-    // O que acontece quando todas as estrelas entram no portal
+    // ─── Verifica se todas as estrelas foram coletadas ───────────────────────
     useEffect(() => {
-        if (isLevelDone && !showResult && challenge) {
-            portalRotate.value = withTiming(360, { duration: 1000, easing: Easing.bezier(0.25, 0.1, 0.25, 1) });
-            portalScale.value = withSequence(
-                withSpring(1.4),
-                withSpring(1.0)
-            );
+        if (collectedCount === totalStars && totalStars > 0 && !showResult && !isTransitioning) {
+            setIsTransitioning(true);
+
+            portalScale.value = withSequence(withSpring(1.4), withSpring(1.0));
+            portalRotate.value = withTiming(360, { duration: 900, easing: Easing.out(Easing.cubic) });
             playSound('correct');
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
             setTimeout(() => {
                 setShowResult(true);
-            }, 600);
+                resultScale.value = withSpring(1, { damping: 10 });
+            }, 500);
 
             setTimeout(() => {
+                setShowResult(false);
+                resultScale.value = 0;
+                portalRotate.value = 0;
                 if (currentIndex < CHALLENGES.length - 1) {
-                    setDroppedIds([]);
-                    setShowResult(false);
-                    setLastDroppedCount(0);
-                    portalRotate.value = 0;
-                    setCurrentIndex(i => i + 1);
+                    setCurrentIndex((i) => i + 1);
+                    setCollectedIds(new Set());
+                    setIsTransitioning(false);
                 } else {
                     setIsFinished(true);
                 }
-            }, 3500);
+            }, 3000);
         }
-    }, [isLevelDone, showResult, challenge]);
+    }, [collectedCount, totalStars]);
 
-    const handleDrop = (id: string) => {
-        setDroppedIds(prev => {
-            if (!prev.includes(id)) {
-                const newArr = [...prev, id];
-                setLastDroppedCount(newArr.length);
-                return newArr;
-            }
-            return prev;
+    // ─── Salva progresso ao finalizar ────────────────────────────────────────
+    useEffect(() => {
+        if (!isFinished) return;
+        completeGame(CHALLENGES.length, CHALLENGES.length);
+    }, [isFinished]);
+
+    const handleTapStar = useCallback((id: string) => {
+        if (isTransitioning) return;
+        setCollectedIds((prev) => {
+            if (prev.has(id)) return prev;
+            const next = new Set(prev);
+            next.add(id);
+            return next;
         });
-    };
+        playSound('click');
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }, [isTransitioning]);
 
-    const portalAnimatedStyle = useAnimatedStyle(() => ({
+    const portalStyle = useAnimatedStyle(() => ({
         transform: [
-            { scale: portalScale.value * portalPulse.value },
-            { rotate: `${portalRotate.value}deg` }
-        ]
+            { scale: portalPulse.value * portalScale.value },
+            { rotate: `${portalRotate.value}deg` },
+        ],
     }));
 
-    if (isFinished) {
-        return (
-            <SafeAreaView style={styles.finishedSafeArea}>
-                <ConfettiEffect />
-                <View style={styles.finishedContainer}>
-                    <Image source={require('../../assets/images/happy-tuki.png')} style={styles.finishedMascot} resizeMode="contain" />
-                    <Text style={styles.finishedTitle}>Missão Cumprida!</Text>
-                    <Text style={styles.finishedSubtitle}>Você é um mestre da soma estelar! 🚀🌟</Text>
-                    <TouchableOpacity style={styles.backButtonLarge} onPress={() => { playSound('click'); router.back(); }}>
-                        <Text style={styles.backButtonText}>Voltar para a Trilha</Text>
-                    </TouchableOpacity>
+    const resultStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: resultScale.value }],
+        opacity: resultScale.value,
+    }));
+
+    // ─── Build stars ─────────────────────────────────────────────────────────
+    const starsA = Array.from({ length: challenge.groupA }, (_, i) => ({
+        id: `A-${currentIndex}-${i}`,
+        color: challenge.colorA,
+        emoji: challenge.emojiA,
+    }));
+    const starsB = Array.from({ length: challenge.groupB }, (_, i) => ({
+        id: `B-${currentIndex}-${i}`,
+        color: challenge.colorB,
+        emoji: challenge.emojiB,
+    }));
+
+    // ─── Jogo principal ──────────────────────────────────────────────────────
+    return (
+        <SafeAreaView style={styles.container}>
+            {showResult && <ConfettiEffect />}
+
+            {/* Header */}
+            <View style={styles.header}>
+                <TouchableOpacity
+                    onPress={() => { playSound('click'); router.back(); }}
+                    style={styles.backButton}
+                >
+                    <ChevronLeft size={26} color="#fff" />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>Soma Espacial</Text>
+                <View style={styles.progressContainer}>
+                    <Text style={styles.progressText}>{currentIndex + 1}/{CHALLENGES.length}</Text>
                 </View>
-            </SafeAreaView>
-        );
-    }
+            </View>
 
-    const buildStars = () => {
-        if (!challenge) return [];
-        const stars = [];
-        for (let i = 0; i < challenge.groupA; i++) {
-            stars.push({ id: `A-${currentIndex}-${i}`, group: 'A', color: challenge.colorA });
-        }
-        for (let i = 0; i < challenge.groupB; i++) {
-            stars.push({ id: `B-${currentIndex}-${i}`, group: 'B', color: challenge.colorB });
-        }
-        return stars;
-    };
-    const stars = buildStars();
-
-    const renderVisualEquation = () => {
-        if (!challenge) return null;
-        return (
+            {/* Equação visual */}
             <View style={styles.equationRow}>
                 <View style={[styles.eqBox, { borderColor: challenge.colorA }]}>
-                    {Array.from({ length: challenge.groupA }).map((_, i) => (
-                        <Star key={i} size={22} color={challenge.colorA} fill={challenge.colorA} style={styles.eqStar} />
-                    ))}
+                    <Text style={[styles.eqNumber, { color: challenge.colorA }]}>{challenge.groupA}</Text>
                 </View>
-                <Text style={styles.eqText}>+</Text>
+                <Text style={styles.eqOp}>+</Text>
                 <View style={[styles.eqBox, { borderColor: challenge.colorB }]}>
-                    {Array.from({ length: challenge.groupB }).map((_, i) => (
-                        <Star key={i} size={22} color={challenge.colorB} fill={challenge.colorB} style={styles.eqStar} />
-                    ))}
+                    <Text style={[styles.eqNumber, { color: challenge.colorB }]}>{challenge.groupB}</Text>
                 </View>
-                <Text style={styles.eqText}>=</Text>
+                <Text style={styles.eqOp}>=</Text>
                 <View style={[styles.eqBox, styles.eqResultBox]}>
                     {showResult ? (
                         <Animated.Text entering={ZoomIn} style={styles.eqResultNumber}>
@@ -185,207 +197,362 @@ export default function SomaEspacialScreen() {
                     )}
                 </View>
             </View>
-        );
-    };
 
-    return (
-        <GestureHandlerRootView style={{ flex: 1 }}>
-            <SafeAreaView style={styles.container}>
-                {showResult && <ConfettiEffect />}
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => { playSound('click'); router.back(); }} style={styles.backButton}>
-                        <ChevronLeft size={28} color="#fff" />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Soma Espacial</Text>
-                    <View style={styles.progressContainer}>
-                        <Text style={styles.progressText}>{currentIndex + 1}/{CHALLENGES.length}</Text>
-                    </View>
-                </View>
+            {/* Hint */}
+            <View style={styles.hintBanner}>
+                <Text style={styles.hintText}>
+                    {isTransitioning
+                        ? `🎉 ${challenge.groupA} + ${challenge.groupB} = ${challenge.total}!`
+                        : `👆 Toque nas estrelas para enviá-las ao Portal! (${collectedCount}/${totalStars})`}
+                </Text>
+            </View>
 
-                {renderVisualEquation()}
-
-                <View style={styles.gameArea} pointerEvents="box-none">
-                    {/* Portal Mágico */}
-                    <View style={styles.portalWrapper} pointerEvents="none">
-                        <Animated.View style={[styles.portalOuterRing, portalAnimatedStyle]}>
-                            <View style={styles.portalInnerRing}>
-                                <View style={styles.portalCore}>
-                                    {showResult ? (
-                                        <Animated.Text entering={ZoomIn} style={styles.portalResultText}>
-                                            {challenge?.total}
-                                        </Animated.Text>
-                                    ) : (
-                                        <Text style={styles.portalHintText}>Arraste aqui!</Text>
-                                    )}
-                                </View>
-                            </View>
-                        </Animated.View>
-                    </View>
-
-                    {/* Texto de Contagem Pop-up */}
-                    {!showResult && lastDroppedCount > 0 && lastDroppedCount < (challenge?.total || 99) && (
-                        <Animated.Text
-                            key={lastDroppedCount}
-                            entering={FadeIn.duration(200)}
-                            exiting={FadeOut.duration(200)}
-                            style={styles.countingText}
-                            pointerEvents="none"
-                        >
-                            {NUMBER_WORDS[lastDroppedCount]}
-                        </Animated.Text>
-                    )}
-
-                    {/* Estrelas Flutuantes */}
-                    {stars.map((star, index) => {
-                        const isDropped = droppedIds.includes(star.id);
-                        return (
-                            <FloatingStar
+            {/* Área principal: grupo A | portal | grupo B */}
+            <View style={styles.gameArea}>
+                {/* Grupo A */}
+                <View style={styles.sideColumn}>
+                    <Text style={[styles.groupLabel, { color: challenge.colorA }]}>
+                        {challenge.groupA} {challenge.emojiA}
+                    </Text>
+                    <View style={styles.starsGrid}>
+                        {starsA.map((star) => (
+                            <StarTile
                                 key={star.id}
                                 id={star.id}
                                 color={star.color}
-                                index={index}
-                                isDropped={isDropped}
-                                onDrop={handleDrop}
+                                emoji={star.emoji}
+                                isCollected={collectedIds.has(star.id)}
+                                onTap={handleTapStar}
                             />
-                        );
-                    })}
+                        ))}
+                    </View>
                 </View>
-            </SafeAreaView>
-        </GestureHandlerRootView>
+
+                {/* Portal central */}
+                <View style={styles.portalColumn}>
+                    <Animated.View style={[styles.portalOuter, portalStyle]}>
+                        <View style={styles.portalInner}>
+                            <View style={styles.portalCore}>
+                                {showResult ? (
+                                    <Animated.Text entering={ZoomIn} style={styles.portalResultText}>
+                                        {challenge.total}
+                                    </Animated.Text>
+                                ) : (
+                                    <Text style={styles.portalCountText}>
+                                        {collectedCount}/{totalStars}
+                                    </Text>
+                                )}
+                            </View>
+                        </View>
+                    </Animated.View>
+                    <Text style={styles.portalLabel}>Portal{'\n'}Espacial</Text>
+                </View>
+
+                {/* Grupo B */}
+                <View style={styles.sideColumn}>
+                    <Text style={[styles.groupLabel, { color: challenge.colorB }]}>
+                        {challenge.groupB} {challenge.emojiB}
+                    </Text>
+                    <View style={styles.starsGrid}>
+                        {starsB.map((star) => (
+                            <StarTile
+                                key={star.id}
+                                id={star.id}
+                                color={star.color}
+                                emoji={star.emoji}
+                                isCollected={collectedIds.has(star.id)}
+                                onTap={handleTapStar}
+                            />
+                        ))}
+                    </View>
+                </View>
+            </View>
+
+            {/* Balloon de acerto */}
+            {showResult && (
+                <Animated.View
+                    entering={BounceIn}
+                    exiting={FadeOut}
+                    style={styles.announcementBalloon}
+                >
+                    <Text style={styles.announcementText}>
+                        🚀 {challenge.groupA} + {challenge.groupB} = {challenge.total}! Incrível!
+                    </Text>
+                </Animated.View>
+            )}
+            {completionState && (
+                <GameCompletionModal state={completionState} onContinue={() => router.back()} />
+            )}
+        </SafeAreaView>
     );
 }
 
-function FloatingStar({ id, color, index, isDropped, onDrop }: any) {
-    // Espalhando posições: esquerda ou direita dependendo do índice
-    const isLeft = index % 2 === 0;
-    const padding = 20;
-    
-    // Gerar alturas pseudo-aleatórias mas espaçadas para não sobrepor muito
-    const sideIndex = Math.floor(index / 2);
-    const yOffsets = [0.05, 0.65, 0.3, 0.75, 0.45, 0.2];
-    const startY = SCREEN_HEIGHT * (yOffsets[sideIndex % yOffsets.length]) + (isLeft ? 0 : 40);
+// ─── StarTile ────────────────────────────────────────────────────────────────
+interface StarTileProps {
+    id: string;
+    color: string;
+    emoji: string;
+    isCollected: boolean;
+    onTap: (id: string) => void;
+}
 
-    const sideX = isLeft 
-        ? padding + (sideIndex * 15) 
-        : SCREEN_WIDTH - padding - STAR_SIZE - (sideIndex * 15);
-
-    const x = useSharedValue(0);
-    const y = useSharedValue(0);
+function StarTile({ id, color, emoji, isCollected, onTap }: StarTileProps) {
     const scale = useSharedValue(1);
     const opacity = useSharedValue(1);
-    const bob = useSharedValue(0);
 
-    // Efeito de flutuar livremente
     useEffect(() => {
-        if (!isDropped) {
-            bob.value = withRepeat(
-                withSequence(
-                    withTiming(15, { duration: 1500 + index * 150, easing: Easing.inOut(Easing.ease) }),
-                    withTiming(-15, { duration: 1500 + index * 150, easing: Easing.inOut(Easing.ease) })
-                ),
-                -1,
-                true
-            );
+        if (isCollected) {
+            scale.value = withSequence(withSpring(1.4), withTiming(0, { duration: 280 }));
+            opacity.value = withTiming(0, { duration: 320 });
         } else {
-            bob.value = 0;
+            scale.value = 1;
+            opacity.value = 1;
         }
-    }, [isDropped]);
-
-    useEffect(() => {
-        if (isDropped) {
-            x.value = withSpring(PORTAL_X - sideX - STAR_SIZE / 2);
-            y.value = withSpring(PORTAL_Y - startY - STAR_SIZE / 2);
-            scale.value = withSequence(withSpring(1.5), withTiming(0, { duration: 300 }));
-            opacity.value = withTiming(0, { duration: 350 });
-        }
-    }, [isDropped]);
-
-    const drag = Gesture.Pan()
-        .onStart(() => {
-            if (isDropped) return;
-            scale.value = withSpring(1.2);
-            runOnJS(playSound)('click');
-        })
-        .onUpdate((e) => {
-            if (isDropped) return;
-            x.value = e.translationX;
-            y.value = e.translationY;
-        })
-        .onEnd((e) => {
-            if (isDropped) return;
-            const cx = sideX + STAR_SIZE / 2 + e.translationX;
-            const cy = startY + STAR_SIZE / 2 + e.translationY;
-            const dist = Math.sqrt(Math.pow(cx - PORTAL_X, 2) + Math.pow(cy - PORTAL_Y, 2));
-
-            if (dist < DROP_RADIUS) {
-                runOnJS(onDrop)(id);
-                runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
-                runOnJS(playSound)('click');
-            } else {
-                x.value = withSpring(0);
-                y.value = withSpring(0);
-                scale.value = withSpring(1);
-                runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
-            }
-        });
+    }, [isCollected]);
 
     const animStyle = useAnimatedStyle(() => ({
-        transform: [
-            { translateX: x.value },
-            { translateY: y.value + bob.value },
-            { scale: scale.value }
-        ] as any,
-        opacity: opacity.value
+        transform: [{ scale: scale.value }],
+        opacity: opacity.value,
     }));
 
     return (
-        <GestureDetector gesture={drag}>
-            <Animated.View pointerEvents={isDropped ? 'none' : 'auto'} style={[styles.starBubble, animStyle, { left: sideX, top: startY }]}>
-                <Star size={STAR_SIZE * 0.75} color={color} fill={color} />
+        <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => !isCollected && onTap(id)}
+            disabled={isCollected}
+        >
+            <Animated.View
+                style={[
+                    styles.starTile,
+                    { backgroundColor: color, shadowColor: color },
+                    animStyle,
+                ]}
+            >
+                <Text style={styles.starEmoji}>{emoji}</Text>
             </Animated.View>
-        </GestureDetector>
+        </TouchableOpacity>
     );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#0B0D17' }, // Fundo de galáxia escuro
-    header: { padding: 20, paddingTop: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', zIndex: 10 },
-    headerTitle: { color: '#fff', fontSize: 22, fontWeight: 'bold' },
-    backButton: { padding: 8, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12 },
-    progressContainer: { backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
-    progressText: { color: '#fbbf24', fontWeight: 'bold', fontSize: 16 },
-    
-    // Equação Visual
-    equationRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 10, marginBottom: 20, gap: 12, zIndex: 10 },
-    eqBox: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', minWidth: 60, minHeight: 60, padding: 8, borderRadius: 16, borderWidth: 2.5, backgroundColor: 'rgba(255,255,255,0.05)' },
-    eqStar: { margin: 2 },
-    eqText: { fontSize: 32, fontWeight: '900', color: '#94a3b8' },
-    eqResultBox: { borderColor: '#fbbf24', minWidth: 65, backgroundColor: 'rgba(251, 191, 36, 0.1)' },
-    eqResultNumber: { fontSize: 34, fontWeight: '900', color: '#fbbf24' },
-    eqBlank: { fontSize: 32, fontWeight: '900', color: '#4b5563' },
+// ─── Styles ──────────────────────────────────────────────────────────────────
+const PORTAL_SIZE = 110;
 
-    gameArea: { flex: 1, position: 'relative' },
+const styles = StyleSheet.create({
+    container: { flex: 1, backgroundColor: '#0B0D17' },
+
+    header: {
+        padding: 18,
+        paddingTop: 36,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: '#12163a',
+        borderBottomLeftRadius: 24,
+        borderBottomRightRadius: 24,
+        elevation: 6,
+        shadowColor: '#8b5cf6',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.35,
+        shadowRadius: 8,
+    },
+    backButton: {
+        padding: 8,
+        backgroundColor: 'rgba(255,255,255,0.15)',
+        borderRadius: 12,
+    },
+    headerTitle: { color: '#fff', fontSize: 19, fontWeight: 'bold' },
+    progressContainer: {
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        paddingHorizontal: 14,
+        paddingVertical: 6,
+        borderRadius: 16,
+    },
+    progressText: { color: '#fbbf24', fontWeight: 'bold', fontSize: 15 },
+
+    // Equação
+    equationRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        marginTop: 16,
+        paddingHorizontal: 20,
+    },
+    eqBox: {
+        width: 52,
+        height: 52,
+        borderRadius: 14,
+        borderWidth: 2.5,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    eqNumber: { fontSize: 24, fontWeight: '900' },
+    eqOp: { fontSize: 26, fontWeight: '900', color: '#94a3b8' },
+    eqResultBox: { borderColor: '#fbbf24', backgroundColor: 'rgba(251,191,36,0.1)' },
+    eqResultNumber: { fontSize: 26, fontWeight: '900', color: '#fbbf24' },
+    eqBlank: { fontSize: 26, fontWeight: '900', color: '#4b5563' },
+
+    // Hint
+    hintBanner: {
+        marginHorizontal: 20,
+        marginTop: 12,
+        backgroundColor: '#12163a',
+        borderRadius: 14,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderWidth: 1,
+        borderColor: '#1e2557',
+    },
+    hintText: {
+        color: '#94a3b8',
+        fontSize: 13,
+        fontWeight: '600',
+        textAlign: 'center',
+        lineHeight: 20,
+    },
+
+    // Game area — 3 colunas
+    gameArea: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 10,
+        paddingVertical: 10,
+        gap: 4,
+    },
+    sideColumn: {
+        flex: 1,
+        alignItems: 'center',
+        gap: 8,
+    },
+    groupLabel: {
+        fontSize: 13,
+        fontWeight: '800',
+        textAlign: 'center',
+        letterSpacing: 0.4,
+    },
+    starsGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        gap: GAP,
+    },
+    starTile: {
+        width: STAR_SIZE,
+        height: STAR_SIZE,
+        borderRadius: STAR_SIZE / 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+        elevation: 6,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.5,
+        shadowRadius: 6,
+    },
+    starEmoji: { fontSize: 26 },
 
     // Portal
-    portalWrapper: { position: 'absolute', left: PORTAL_X - PORTAL_SIZE / 2, top: PORTAL_Y - PORTAL_SIZE / 2, width: PORTAL_SIZE, height: PORTAL_SIZE, alignItems: 'center', justifyContent: 'center' },
-    portalOuterRing: { width: PORTAL_SIZE, height: PORTAL_SIZE, borderRadius: PORTAL_SIZE / 2, backgroundColor: 'rgba(139, 92, 246, 0.2)', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'rgba(167, 139, 250, 0.4)', borderStyle: 'dashed' },
-    portalInnerRing: { width: PORTAL_SIZE * 0.75, height: PORTAL_SIZE * 0.75, borderRadius: (PORTAL_SIZE * 0.75) / 2, backgroundColor: 'rgba(124, 58, 237, 0.4)', alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#a78bfa' },
-    portalCore: { width: PORTAL_SIZE * 0.5, height: PORTAL_SIZE * 0.5, borderRadius: (PORTAL_SIZE * 0.5) / 2, backgroundColor: '#4c1d95', alignItems: 'center', justifyContent: 'center', shadowColor: '#c084fc', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 1, shadowRadius: 25, elevation: 15 },
-    portalHintText: { color: '#e9d5ff', fontSize: 12, fontWeight: 'bold', textAlign: 'center', paddingHorizontal: 4 },
-    portalResultText: { color: '#fff', fontSize: 44, fontWeight: '900' },
+    portalColumn: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+    },
+    portalOuter: {
+        width: PORTAL_SIZE,
+        height: PORTAL_SIZE,
+        borderRadius: PORTAL_SIZE / 2,
+        backgroundColor: 'rgba(139,92,246,0.18)',
+        borderWidth: 2,
+        borderColor: 'rgba(167,139,250,0.4)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    portalInner: {
+        width: PORTAL_SIZE * 0.76,
+        height: PORTAL_SIZE * 0.76,
+        borderRadius: (PORTAL_SIZE * 0.76) / 2,
+        backgroundColor: 'rgba(124,58,237,0.35)',
+        borderWidth: 2.5,
+        borderColor: '#a78bfa',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    portalCore: {
+        width: PORTAL_SIZE * 0.48,
+        height: PORTAL_SIZE * 0.48,
+        borderRadius: (PORTAL_SIZE * 0.48) / 2,
+        backgroundColor: '#4c1d95',
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#c084fc',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 18,
+        elevation: 12,
+    },
+    portalCountText: { color: '#e9d5ff', fontSize: 14, fontWeight: 'bold' },
+    portalResultText: { color: '#fff', fontSize: 34, fontWeight: '900' },
+    portalLabel: {
+        color: '#475569',
+        fontSize: 11,
+        fontWeight: '700',
+        textAlign: 'center',
+        textTransform: 'uppercase',
+        letterSpacing: 0.6,
+    },
 
-    // Texto de Contagem
-    countingText: { position: 'absolute', top: PORTAL_Y + PORTAL_SIZE / 2 + 30, left: 0, right: 0, textAlign: 'center', fontSize: 36, fontWeight: '900', color: '#fcd34d', textShadowColor: 'rgba(245, 158, 11, 0.8)', textShadowOffset: { width: 0, height: 4 }, textShadowRadius: 10, zIndex: 5 },
+    // Announcement
+    announcementBalloon: {
+        position: 'absolute',
+        bottom: 20,
+        left: 20,
+        right: 20,
+        backgroundColor: '#1e2557',
+        borderRadius: 20,
+        paddingHorizontal: 20,
+        paddingVertical: 14,
+        borderWidth: 2.5,
+        borderColor: '#8b5cf6',
+        elevation: 10,
+        shadowColor: '#8b5cf6',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.5,
+        shadowRadius: 10,
+        alignItems: 'center',
+    },
+    announcementText: {
+        fontSize: 17,
+        fontWeight: '900',
+        color: '#fbbf24',
+        textAlign: 'center',
+    },
 
-    // Estrelas Flutuantes
-    starBubble: { position: 'absolute', width: STAR_SIZE, height: STAR_SIZE, borderRadius: STAR_SIZE / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', shadowColor: '#fff', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 8, zIndex: 10 },
-
-    // Finalização
+    // Finished
     finishedSafeArea: { flex: 1, backgroundColor: '#0B0D17' },
-    finishedContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 30 },
-    finishedMascot: { width: '70%', height: Dimensions.get('window').height * 0.32, marginBottom: 20 },
-    finishedTitle: { fontSize: 38, fontWeight: '900', color: '#34d399', marginBottom: 10, textAlign: 'center' },
-    finishedSubtitle: { fontSize: 20, color: '#94a3b8', marginBottom: 40, textAlign: 'center', lineHeight: 28 },
-    backButtonLarge: { backgroundColor: '#8b5cf6', paddingVertical: 16, paddingHorizontal: 40, borderRadius: 30, elevation: 4, shadowColor: '#8b5cf6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8 },
-    backButtonText: { color: '#fff', fontSize: 20, fontWeight: 'bold' }
+    finishedContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 30,
+    },
+    finishedMascot: {
+        width: '70%',
+        height: Dimensions.get('window').height * 0.3,
+        marginBottom: 16,
+    },
+    finishedTitle: { fontSize: 32, fontWeight: '900', color: '#34d399', marginBottom: 10 },
+    finishedSubtitle: { fontSize: 18, color: '#94a3b8', marginBottom: 36, textAlign: 'center', lineHeight: 26 },
+    backButtonLarge: {
+        backgroundColor: '#8b5cf6',
+        paddingVertical: 16,
+        paddingHorizontal: 40,
+        borderRadius: 30,
+        elevation: 4,
+        shadowColor: '#8b5cf6',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.4,
+        shadowRadius: 8,
+    },
+    backButtonText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
 });

@@ -1,364 +1,529 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions, Image } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+    View,
+    Text,
+    StyleSheet,
+    TouchableOpacity,
+    SafeAreaView,
+    Dimensions,
+} from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Circle, Triangle, Square, Star as StarIcon, Hexagon } from 'lucide-react-native';
-import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ChevronLeft } from 'lucide-react-native';
 import Animated, {
-    useSharedValue, useAnimatedStyle, withSpring, withTiming,
-    withSequence, withRepeat, runOnJS, Easing
+    useSharedValue,
+    useAnimatedStyle,
+    withSpring,
+    withTiming,
+    withSequence,
+    withRepeat,
+    cancelAnimation,
+    Easing,
+    BounceIn,
+    FadeIn,
+    FadeOut,
+    ZoomIn,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { playSound } from '../services/sound';
-import ConfettiEffect from '../components/ConfettiEffect';
-import { obterPerfilAtivo, salvarPerfilAtivo } from '../services/storage';
-import { registrarProgresso, buscarUsuarioPorId } from '../services/api';
+import { useGameCompletion } from '../hooks/useGameCompletion';
+import GameCompletionModal from '../components/GameCompletionModal';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+// ─── Formas disponíveis ───────────────────────────────────────────────────────
+type ShapeKey = 'Círculo' | 'Triângulo' | 'Quadrado' | 'Estrela' | 'Hexágono';
 
-const SHAPE_COMPONENTS: any = {
-    Circle: Circle,
-    Triangle: Triangle,
-    Square: Square,
-    Star: StarIcon,
-    Hexagon: Hexagon
+const SHAPE_EMOJIS: Record<ShapeKey, string> = {
+    Círculo: '⭕',
+    Triângulo: '🔺',
+    Quadrado: '🟥',
+    Estrela: '⭐',
+    Hexágono: '🔷',
 };
 
-const SHAPE_NAMES: any = {
-    Circle: 'Círculos',
-    Triangle: 'Triângulos',
-    Square: 'Quadrados',
-    Star: 'Estrelas',
-    Hexagon: 'Hexágonos'
-};
+// ─── Desafios ────────────────────────────────────────────────────────────────
+interface Challenge {
+    id: number;
+    bucketLeft: ShapeKey;
+    bucketRight: ShapeKey;
+    items: { shape: ShapeKey; id: string }[];
+}
 
-const CHALLENGES = [
+const CHALLENGES: Challenge[] = [
     {
         id: 1,
-        portalLeft: 'Circle',
-        portalRight: 'Triangle',
-        asteroids: ['Circle', 'Triangle', 'Circle', 'Triangle', 'Circle']
+        bucketLeft: 'Círculo',
+        bucketRight: 'Triângulo',
+        items: [
+            { id: 'c1', shape: 'Círculo' },
+            { id: 't1', shape: 'Triângulo' },
+            { id: 'c2', shape: 'Círculo' },
+            { id: 't2', shape: 'Triângulo' },
+            { id: 'c3', shape: 'Círculo' },
+        ],
     },
     {
         id: 2,
-        portalLeft: 'Square',
-        portalRight: 'Star',
-        asteroids: ['Star', 'Square', 'Square', 'Star', 'Square', 'Star']
+        bucketLeft: 'Quadrado',
+        bucketRight: 'Estrela',
+        items: [
+            { id: 'e1', shape: 'Estrela' },
+            { id: 'q1', shape: 'Quadrado' },
+            { id: 'q2', shape: 'Quadrado' },
+            { id: 'e2', shape: 'Estrela' },
+            { id: 'q3', shape: 'Quadrado' },
+            { id: 'e3', shape: 'Estrela' },
+        ],
     },
     {
         id: 3,
-        portalLeft: 'Triangle',
-        portalRight: 'Hexagon',
-        asteroids: ['Hexagon', 'Triangle', 'Hexagon', 'Triangle', 'Triangle', 'Hexagon']
-    }
+        bucketLeft: 'Triângulo',
+        bucketRight: 'Hexágono',
+        items: [
+            { id: 'h1', shape: 'Hexágono' },
+            { id: 't1', shape: 'Triângulo' },
+            { id: 'h2', shape: 'Hexágono' },
+            { id: 't2', shape: 'Triângulo' },
+            { id: 't3', shape: 'Triângulo' },
+            { id: 'h3', shape: 'Hexágono' },
+        ],
+    },
 ];
 
-const PORTAL_SIZE = 120;
-const PORTAL_LEFT_X = PORTAL_SIZE / 2 + 10;
-const PORTAL_RIGHT_X = SCREEN_WIDTH - PORTAL_SIZE / 2 - 10;
-const PORTAL_Y = SCREEN_HEIGHT * 0.72;
-const DROP_RADIUS = 75;
-
+// ─── Main Screen ─────────────────────────────────────────────────────────────
 export default function FormasGeometricasScreen() {
     const router = useRouter();
+    const { completionState, completeGame } = useGameCompletion(33);
     const [currentIndex, setCurrentIndex] = useState(0);
-    const [droppedIds, setDroppedIds] = useState<string[]>([]);
+    const [sorted, setSorted] = useState<Record<string, 'left' | 'right' | 'wrong'>>({});
     const [isFinished, setIsFinished] = useState(false);
-    const [asteroids, setAsteroids] = useState<any[]>([]);
+    const [isTransitioning, setIsTransitioning] = useState(false);
 
     const challenge = CHALLENGES[currentIndex];
+    const totalItems = challenge.items.length;
+    const correctlySorted = Object.values(sorted).filter((v) => v === 'left' || v === 'right').length;
 
-    // Gerar asteroides para o desafio atual
+    // Verifica conclusão do desafio
     useEffect(() => {
-        if (challenge) {
-            setAsteroids(challenge.asteroids.map((shape, idx) => ({
-                id: `ast-${currentIndex}-${idx}`,
-                shape,
-                color: ['#fbbf24', '#34d399', '#60a5fa', '#f472b6', '#a78bfa'][Math.floor(Math.random() * 5)],
-                scale: 0.8 + Math.random() * 0.5,
-                rotation: Math.random() * 360,
-                startX: 40 + Math.random() * (SCREEN_WIDTH - 100),
-                startY: 120 + Math.random() * (SCREEN_HEIGHT * 0.4)
-            })));
-        }
-    }, [currentIndex, challenge]);
-
-    // Checar conclusão do desafio
-    useEffect(() => {
-        if (challenge && droppedIds.length === challenge.asteroids.length && challenge.asteroids.length > 0) {
+        if (correctlySorted === totalItems && totalItems > 0 && !isTransitioning) {
+            setIsTransitioning(true);
             playSound('correct');
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            
+
             setTimeout(() => {
                 if (currentIndex < CHALLENGES.length - 1) {
-                    setDroppedIds([]);
-                    setCurrentIndex(i => i + 1);
+                    setCurrentIndex((i) => i + 1);
+                    setSorted({});
+                    setIsTransitioning(false);
                 } else {
                     setIsFinished(true);
                 }
-            }, 1200);
+            }, 1400);
         }
-    }, [droppedIds, challenge, currentIndex]);
+    }, [correctlySorted, totalItems]);
 
-    // Salvar progresso
+    // Salva progresso
     useEffect(() => {
-        if (isFinished) {
-            playSound('victory');
-            const salvar = async () => {
-                try {
-                    const perfil = await obterPerfilAtivo();
-                    if (perfil) {
-                        await registrarProgresso({
-                            idUsuario: perfil.id,
-                            idLicao: 33, // Formas Geométricas – trilha-matematica
-                            pontuacao: CHALLENGES.length,
-                            tentativas: 1,
-                            concluida: true,
-                        });
-                        const atualizado = await buscarUsuarioPorId(perfil.id);
-                        await salvarPerfilAtivo(atualizado);
-                    }
-                } catch (e) {
-                    console.error('Erro ao registrar progresso de Formas:', e);
-                }
-            };
-            salvar();
-        }
+        if (!isFinished) return;
+        completeGame(CHALLENGES.length, CHALLENGES.length);
     }, [isFinished]);
 
-    const handleDrop = (ast: any, targetPortal: 'left' | 'right') => {
-        if (!challenge) return false;
-        
-        const expectedShape = targetPortal === 'left' ? challenge.portalLeft : challenge.portalRight;
-
-        if (ast.shape === expectedShape) {
-            setDroppedIds(prev => {
-                if (!prev.includes(ast.id)) {
-                    return [...prev, ast.id];
-                }
-                return prev;
-            });
-            playSound('click'); // Som de acerto/energia
+    const handleSort = useCallback((itemId: string, shape: ShapeKey, bucket: 'left' | 'right') => {
+        const expected = bucket === 'left' ? challenge.bucketLeft : challenge.bucketRight;
+        if (shape === expected) {
+            setSorted((prev) => ({ ...prev, [itemId]: bucket }));
+            playSound('click');
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            return true;
         } else {
-            playSound('wrong'); // Som de erro ou ricochete
+            setSorted((prev) => ({ ...prev, [itemId]: 'wrong' }));
+            playSound('wrong');
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            return false;
+            // Reseta o erro após 700ms para permitir nova tentativa
+            setTimeout(() => {
+                setSorted((prev) => {
+                    const next = { ...prev };
+                    if (next[itemId] === 'wrong') delete next[itemId];
+                    return next;
+                });
+            }, 700);
         }
-    };
+    }, [challenge]);
 
-    if (isFinished) {
-        return (
-            <SafeAreaView style={styles.finishedSafeArea}>
-                <ConfettiEffect />
-                <View style={styles.finishedContainer}>
-                    <Image source={require('../../assets/images/happy-tuki.png')} style={styles.finishedMascot} resizeMode="contain" />
-                    <Text style={styles.finishedTitle}>Excelente!</Text>
-                    <Text style={styles.finishedSubtitle}>Você organizou toda a galáxia geométrica! 🚀✨</Text>
-                    <TouchableOpacity style={styles.backButtonLarge} onPress={() => { playSound('click'); router.back(); }}>
-                        <Text style={styles.backButtonText}>Voltar para a Trilha</Text>
-                    </TouchableOpacity>
-                </View>
-            </SafeAreaView>
-        );
-    }
+    const unsortedItems = challenge.items.filter((item) => !sorted[item.id] || sorted[item.id] === 'wrong');
 
     return (
-        <GestureHandlerRootView style={{ flex: 1 }}>
-            <SafeAreaView style={styles.container}>
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => { playSound('click'); router.back(); }} style={styles.backButton}>
-                        <ChevronLeft size={28} color="#fff" />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Classificador</Text>
-                    <View style={styles.progressContainer}>
-                        <Text style={styles.progressText}>{currentIndex + 1}/{CHALLENGES.length}</Text>
-                    </View>
+        <SafeAreaView style={styles.container}>
+            {/* Header */}
+            <View style={styles.header}>
+                <TouchableOpacity
+                    onPress={() => { playSound('click'); router.back(); }}
+                    style={styles.backButton}
+                >
+                    <ChevronLeft size={26} color="#fff" />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>Formas Geométricas</Text>
+                <View style={styles.progressContainer}>
+                    <Text style={styles.progressText}>{currentIndex + 1}/{CHALLENGES.length}</Text>
                 </View>
+            </View>
 
-                {challenge && (
-                    <View style={styles.gameArea} pointerEvents="box-none">
-                        <Portal side="left" shape={challenge.portalLeft} />
-                        <Portal side="right" shape={challenge.portalRight} />
+            {/* Hint */}
+            <Animated.View entering={FadeIn} key={`hint-${currentIndex}`} style={styles.hintBanner}>
+                <Text style={styles.hintText}>
+                    📦 Toque na forma e depois no balde correto!
+                </Text>
+            </Animated.View>
 
-                        {asteroids.map(ast => {
-                            const isDropped = droppedIds.includes(ast.id);
-                            return (
-                                <DraggableAsteroid
-                                    key={ast.id}
-                                    ast={ast}
-                                    isDropped={isDropped}
-                                    portalLeftShape={challenge.portalLeft}
-                                    portalRightShape={challenge.portalRight}
-                                    onDrop={handleDrop}
-                                />
-                            );
-                        })}
-                    </View>
-                )}
-            </SafeAreaView>
-        </GestureHandlerRootView>
+            {/* Progresso */}
+            <View style={styles.progressRow}>
+                <Text style={styles.progressLabel}>
+                    ✅ {correctlySorted}/{totalItems} classificados
+                </Text>
+            </View>
+
+            {/* Baldes (destinos) */}
+            <View style={styles.bucketsRow}>
+                <BucketZone
+                    shape={challenge.bucketLeft}
+                    side="left"
+                    color="#60a5fa"
+                    items={challenge.items.filter((i) => sorted[i.id] === 'left')}
+                />
+                <BucketZone
+                    shape={challenge.bucketRight}
+                    side="right"
+                    color="#f472b6"
+                    items={challenge.items.filter((i) => sorted[i.id] === 'right')}
+                />
+            </View>
+
+            {/* Itens para classificar */}
+            <View style={styles.itemsArea}>
+                <Text style={styles.itemsLabel}>Classifique estas formas:</Text>
+                <View style={styles.itemsGrid}>
+                    {unsortedItems.map((item) => {
+                        const isWrong = sorted[item.id] === 'wrong';
+                        return (
+                            <ShapeCard
+                                key={item.id}
+                                item={item}
+                                isWrong={isWrong}
+                                bucketLeft={challenge.bucketLeft}
+                                bucketRight={challenge.bucketRight}
+                                onSort={handleSort}
+                            />
+                        );
+                    })}
+                </View>
+            </View>
+            {completionState && (
+                <GameCompletionModal state={completionState} onContinue={() => router.back()} />
+            )}
+        </SafeAreaView>
     );
 }
 
-function Portal({ side, shape }: { side: 'left' | 'right', shape: string }) {
-    const ShapeIcon = SHAPE_COMPONENTS[shape];
-    const x = side === 'left' ? PORTAL_LEFT_X : PORTAL_RIGHT_X;
-    const color = side === 'left' ? '#60a5fa' : '#f472b6';
-    
-    const pulse = useSharedValue(1);
+// ─── BucketZone ──────────────────────────────────────────────────────────────
+function BucketZone({
+    shape,
+    side,
+    color,
+    items,
+}: {
+    shape: ShapeKey;
+    side: 'left' | 'right';
+    color: string;
+    items: { shape: ShapeKey; id: string }[];
+}) {
+    const scale = useSharedValue(1);
     useEffect(() => {
-        pulse.value = withRepeat(
+        scale.value = withRepeat(
             withSequence(
-                withTiming(1.08, { duration: 1500 }),
-                withTiming(1.0, { duration: 1500 })
+                withTiming(1.06, { duration: 1200 }),
+                withTiming(1.0, { duration: 1200 })
             ),
             -1,
             true
         );
+        return () => cancelAnimation(scale);
     }, []);
-
-    const animStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: pulse.value }]
-    }));
+    const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
     return (
-        <Animated.View style={[styles.portalWrapper, { left: x - PORTAL_SIZE / 2, top: PORTAL_Y - PORTAL_SIZE / 2 }, animStyle]}>
-            <View style={[styles.portalRing, { borderColor: color, shadowColor: color }]}>
-                {ShapeIcon && <ShapeIcon size={40} color={color} opacity={0.8} />}
-                <Text style={[styles.portalText, { color }]}>{SHAPE_NAMES[shape]}</Text>
+        <Animated.View style={[styles.bucket, { borderColor: color }, animStyle]}>
+            <Text style={[styles.bucketLabel, { color }]}>{SHAPE_EMOJIS[shape]}</Text>
+            <Text style={[styles.bucketName, { color }]}>{shape}s</Text>
+            <View style={styles.bucketItems}>
+                {items.map((item) => (
+                    <Animated.Text key={item.id} entering={BounceIn} style={styles.bucketItemEmoji}>
+                        {SHAPE_EMOJIS[item.shape]}
+                    </Animated.Text>
+                ))}
             </View>
         </Animated.View>
     );
 }
 
-function DraggableAsteroid({ ast, isDropped, portalLeftShape, portalRightShape, onDrop }: any) {
-    const x = useSharedValue(ast.startX);
-    const y = useSharedValue(ast.startY);
-    const scale = useSharedValue(ast.scale);
-    const rotation = useSharedValue(ast.rotation);
-
-    const bob = useSharedValue(0);
-
-    useEffect(() => {
-        if (!isDropped) {
-            bob.value = withRepeat(
-                withSequence(
-                    withTiming(12, { duration: 1000 + Math.random() * 1000, easing: Easing.inOut(Easing.ease) }),
-                    withTiming(-12, { duration: 1000 + Math.random() * 1000, easing: Easing.inOut(Easing.ease) })
-                ),
-                -1,
-                true
-            );
-            rotation.value = withRepeat(
-                withTiming(ast.rotation + 360, { duration: 15000 + Math.random() * 10000, easing: Easing.linear }),
-                -1,
-                false
-            );
-        } else {
-            bob.value = 0;
-        }
-    }, [isDropped]);
+// ─── ShapeCard com modal de escolha ──────────────────────────────────────────
+function ShapeCard({
+    item,
+    isWrong,
+    bucketLeft,
+    bucketRight,
+    onSort,
+}: {
+    item: { id: string; shape: ShapeKey };
+    isWrong: boolean;
+    bucketLeft: ShapeKey;
+    bucketRight: ShapeKey;
+    onSort: (id: string, shape: ShapeKey, bucket: 'left' | 'right') => void;
+}) {
+    const [expanded, setExpanded] = useState(false);
+    const scale = useSharedValue(1);
+    const shake = useSharedValue(0);
 
     useEffect(() => {
-        if (isDropped) {
-            // Animate disappearance (brilho estelar)
-            scale.value = withTiming(0, { duration: 300 });
-        } else {
-            // Initial mount or challenge reset
-            scale.value = withSpring(ast.scale);
-            x.value = withSpring(ast.startX);
-            y.value = withSpring(ast.startY);
+        if (isWrong) {
+            shake.value = withSequence(
+                withTiming(-8, { duration: 60 }),
+                withTiming(8, { duration: 60 }),
+                withTiming(-8, { duration: 60 }),
+                withTiming(0, { duration: 60 })
+            );
+            scale.value = withSequence(withSpring(0.85), withSpring(1));
+            setExpanded(false);
         }
-    }, [isDropped, ast]);
-
-    const drag = Gesture.Pan()
-        .onStart(() => {
-            if (isDropped) return;
-            scale.value = withSpring(ast.scale * 1.3);
-            runOnJS(playSound)('click');
-        })
-        .onUpdate((e) => {
-            if (isDropped) return;
-            x.value = ast.startX + e.translationX;
-            y.value = ast.startY + e.translationY;
-        })
-        .onEnd(() => {
-            if (isDropped) return;
-
-            const currentX = x.value;
-            const currentY = y.value;
-            
-            const distLeft = Math.sqrt(Math.pow(currentX - PORTAL_LEFT_X, 2) + Math.pow(currentY - PORTAL_Y, 2));
-            const distRight = Math.sqrt(Math.pow(currentX - PORTAL_RIGHT_X, 2) + Math.pow(currentY - PORTAL_Y, 2));
-
-            let targetPortal: 'left' | 'right' | null = null;
-            if (distLeft < DROP_RADIUS) targetPortal = 'left';
-            else if (distRight < DROP_RADIUS) targetPortal = 'right';
-
-            if (targetPortal) {
-                const expectedShape = targetPortal === 'left' ? portalLeftShape : portalRightShape;
-                if (ast.shape === expectedShape) {
-                    // Success! Snap to portal center
-                    const targetX = targetPortal === 'left' ? PORTAL_LEFT_X : PORTAL_RIGHT_X;
-                    x.value = withSpring(targetX - 35);
-                    y.value = withSpring(PORTAL_Y - 35);
-                    runOnJS(onDrop)(ast, targetPortal);
-                } else {
-                    // Failed! Snap back
-                    scale.value = withSpring(ast.scale);
-                    x.value = withSpring(ast.startX);
-                    y.value = withSpring(ast.startY);
-                    runOnJS(onDrop)(ast, targetPortal);
-                }
-            } else {
-                scale.value = withSpring(ast.scale);
-                x.value = withSpring(ast.startX);
-                y.value = withSpring(ast.startY);
-            }
-        });
+    }, [isWrong]);
 
     const animStyle = useAnimatedStyle(() => ({
-        transform: [
-            { translateX: x.value },
-            { translateY: y.value + bob.value },
-            { scale: scale.value },
-            { rotate: `${rotation.value}deg` }
-        ]
+        transform: [{ scale: scale.value }, { translateX: shake.value }],
     }));
 
-    const ShapeIcon = SHAPE_COMPONENTS[ast.shape];
+    if (expanded) {
+        return (
+            <Animated.View entering={ZoomIn} style={styles.shapeCardExpanded}>
+                <Text style={styles.shapeCardEmojiBig}>{SHAPE_EMOJIS[item.shape]}</Text>
+                <Text style={styles.chooseLabel}>Onde vai?</Text>
+                <View style={styles.chooseRow}>
+                    <TouchableOpacity
+                        style={[styles.chooseBtn, { borderColor: '#60a5fa' }]}
+                        onPress={() => { setExpanded(false); onSort(item.id, item.shape, 'left'); }}
+                    >
+                        <Text style={styles.chooseBtnEmoji}>{SHAPE_EMOJIS[bucketLeft]}</Text>
+                        <Text style={[styles.chooseBtnLabel, { color: '#60a5fa' }]}>{bucketLeft}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.chooseBtn, { borderColor: '#f472b6' }]}
+                        onPress={() => { setExpanded(false); onSort(item.id, item.shape, 'right'); }}
+                    >
+                        <Text style={styles.chooseBtnEmoji}>{SHAPE_EMOJIS[bucketRight]}</Text>
+                        <Text style={[styles.chooseBtnLabel, { color: '#f472b6' }]}>{bucketRight}</Text>
+                    </TouchableOpacity>
+                </View>
+                <TouchableOpacity onPress={() => setExpanded(false)} style={styles.cancelBtn}>
+                    <Text style={styles.cancelBtnText}>✕</Text>
+                </TouchableOpacity>
+            </Animated.View>
+        );
+    }
 
     return (
-        <GestureDetector gesture={drag}>
-            <Animated.View pointerEvents={isDropped ? 'none' : 'auto'} style={[styles.asteroidContainer, animStyle]}>
-                {ShapeIcon && <ShapeIcon size={65} color="#fff" fill={ast.color} strokeWidth={2} />}
+        <TouchableOpacity
+            activeOpacity={0.75}
+            onPress={() => {
+                scale.value = withSequence(withSpring(0.9), withSpring(1));
+                setExpanded(true);
+            }}
+        >
+            <Animated.View
+                style={[
+                    styles.shapeCard,
+                    isWrong && styles.shapeCardWrong,
+                    animStyle,
+                ]}
+            >
+                <Text style={styles.shapeEmoji}>{SHAPE_EMOJIS[item.shape]}</Text>
             </Animated.View>
-        </GestureDetector>
+        </TouchableOpacity>
     );
 }
 
+// ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#0f172a' },
-    header: { padding: 20, paddingTop: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', zIndex: 10 },
-    headerTitle: { color: '#fff', fontSize: 22, fontWeight: 'bold' },
-    backButton: { padding: 8, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12 },
-    progressContainer: { backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
-    progressText: { color: '#38bdf8', fontWeight: 'bold', fontSize: 16 },
 
-    gameArea: { flex: 1, position: 'relative' },
+    header: {
+        padding: 18,
+        paddingTop: 36,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: '#0f172a',
+        borderBottomWidth: 1,
+        borderBottomColor: '#1e293b',
+    },
+    backButton: {
+        padding: 8,
+        backgroundColor: 'rgba(255,255,255,0.15)',
+        borderRadius: 12,
+    },
+    headerTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+    progressContainer: {
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        paddingHorizontal: 14,
+        paddingVertical: 6,
+        borderRadius: 16,
+    },
+    progressText: { color: '#38bdf8', fontWeight: 'bold', fontSize: 14 },
 
-    portalWrapper: { position: 'absolute', width: PORTAL_SIZE, height: PORTAL_SIZE, alignItems: 'center', justifyContent: 'center', zIndex: 5 },
-    portalRing: { width: PORTAL_SIZE, height: PORTAL_SIZE, borderRadius: PORTAL_SIZE / 2, borderWidth: 4, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.03)', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.6, shadowRadius: 15 },
-    portalText: { marginTop: 8, fontSize: 13, fontWeight: '900', textTransform: 'uppercase', textAlign: 'center' },
+    hintBanner: {
+        marginHorizontal: 20,
+        marginTop: 12,
+        backgroundColor: 'rgba(56,189,248,0.08)',
+        borderRadius: 14,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderWidth: 1,
+        borderColor: 'rgba(56,189,248,0.2)',
+    },
+    hintText: { color: '#7dd3fc', fontSize: 13, fontWeight: '700', textAlign: 'center' },
 
-    asteroidContainer: { position: 'absolute', width: 70, height: 70, alignItems: 'center', justifyContent: 'center', shadowColor: '#fff', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 5, zIndex: 20 },
+    progressRow: {
+        alignItems: 'center',
+        marginTop: 8,
+        marginBottom: 4,
+    },
+    progressLabel: { color: '#94a3b8', fontSize: 13, fontWeight: '700' },
 
+    // Baldes
+    bucketsRow: {
+        flexDirection: 'row',
+        marginHorizontal: 16,
+        marginTop: 8,
+        gap: 12,
+    },
+    bucket: {
+        flex: 1,
+        borderWidth: 2.5,
+        borderRadius: 20,
+        paddingVertical: 12,
+        paddingHorizontal: 10,
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        alignItems: 'center',
+        minHeight: 110,
+    },
+    bucketLabel: { fontSize: 28 },
+    bucketName: { fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 4 },
+    bucketItems: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        gap: 4,
+        marginTop: 6,
+    },
+    bucketItemEmoji: { fontSize: 20 },
+
+    // Área de itens
+    itemsArea: {
+        flex: 1,
+        marginHorizontal: 16,
+        marginTop: 12,
+    },
+    itemsLabel: {
+        color: '#64748b',
+        fontSize: 13,
+        fontWeight: '700',
+        marginBottom: 10,
+        textAlign: 'center',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    itemsGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        gap: 12,
+    },
+
+    // ShapeCard
+    shapeCard: {
+        width: 70,
+        height: 70,
+        borderRadius: 18,
+        backgroundColor: '#1e293b',
+        borderWidth: 2,
+        borderColor: '#334155',
+        alignItems: 'center',
+        justifyContent: 'center',
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+    },
+    shapeCardWrong: {
+        borderColor: '#ef4444',
+        backgroundColor: '#450a0a',
+    },
+    shapeEmoji: { fontSize: 34 },
+
+    // Expandido
+    shapeCardExpanded: {
+        width: Dimensions.get('window').width - 80,
+        backgroundColor: '#1e293b',
+        borderRadius: 24,
+        borderWidth: 2,
+        borderColor: '#334155',
+        padding: 20,
+        alignItems: 'center',
+        elevation: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.5,
+        shadowRadius: 10,
+    },
+    shapeCardEmojiBig: { fontSize: 52, marginBottom: 8 },
+    chooseLabel: { color: '#94a3b8', fontSize: 14, fontWeight: '700', marginBottom: 14 },
+    chooseRow: { flexDirection: 'row', gap: 12 },
+    chooseBtn: {
+        flex: 1,
+        borderWidth: 2.5,
+        borderRadius: 16,
+        paddingVertical: 14,
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.04)',
+    },
+    chooseBtnEmoji: { fontSize: 30, marginBottom: 4 },
+    chooseBtnLabel: { fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
+    cancelBtn: {
+        marginTop: 12,
+        padding: 6,
+    },
+    cancelBtnText: { color: '#475569', fontSize: 18, fontWeight: 'bold' },
+
+    // Finished
     finishedSafeArea: { flex: 1, backgroundColor: '#0f172a' },
-    finishedContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 30 },
-    finishedMascot: { width: '70%', height: Dimensions.get('window').height * 0.32, marginBottom: 20 },
-    finishedTitle: { fontSize: 38, fontWeight: '900', color: '#38bdf8', marginBottom: 10, textAlign: 'center' },
-    finishedSubtitle: { fontSize: 20, color: '#94a3b8', marginBottom: 40, textAlign: 'center', lineHeight: 28 },
-    backButtonLarge: { backgroundColor: '#38bdf8', paddingVertical: 16, paddingHorizontal: 40, borderRadius: 30, elevation: 4, shadowColor: '#38bdf8', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8 },
-    backButtonText: { color: '#fff', fontSize: 20, fontWeight: 'bold' }
+    finishedContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 30,
+    },
+    finishedMascot: {
+        width: '70%',
+        height: Dimensions.get('window').height * 0.3,
+        marginBottom: 16,
+    },
+    finishedTitle: { fontSize: 32, fontWeight: '900', color: '#38bdf8', marginBottom: 10 },
+    finishedSubtitle: { fontSize: 18, color: '#94a3b8', marginBottom: 36, textAlign: 'center', lineHeight: 26 },
+    backButtonLarge: {
+        backgroundColor: '#38bdf8',
+        paddingVertical: 16,
+        paddingHorizontal: 40,
+        borderRadius: 30,
+        elevation: 4,
+        shadowColor: '#38bdf8',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.4,
+        shadowRadius: 8,
+    },
+    backButtonText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
 });

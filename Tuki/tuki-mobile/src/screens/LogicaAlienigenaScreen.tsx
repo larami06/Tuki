@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Dimensions,
-  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
@@ -17,7 +16,7 @@ import Animated, {
   withTiming,
   withSequence,
   withRepeat,
-  withDelay,
+  cancelAnimation,
   Easing,
   FadeIn,
   ZoomIn,
@@ -25,9 +24,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { playSound } from '../services/sound';
-import ConfettiEffect from '../components/ConfettiEffect';
-import { obterPerfilAtivo, salvarPerfilAtivo } from '../services/storage';
-import { registrarProgresso, buscarUsuarioPorId } from '../services/api';
+import { useGameCompletion } from '../hooks/useGameCompletion';
+import GameCompletionModal from '../components/GameCompletionModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -69,6 +67,7 @@ const CHALLENGES: Challenge[] = [
 
 export default function LogicaAlienigenaScreen() {
   const router = useRouter();
+  const { completionState, completeGame } = useGameCompletion(35);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
   const [disabled, setDisabled] = useState(false);
@@ -79,26 +78,7 @@ export default function LogicaAlienigenaScreen() {
 
   useEffect(() => {
     if (isFinished) {
-      playSound('victory');
-      const salvar = async () => {
-        try {
-          const perfil = await obterPerfilAtivo();
-          if (perfil) {
-            await registrarProgresso({
-              idUsuario: perfil.id,
-              idLicao: 35,
-              pontuacao: CHALLENGES.length,
-              tentativas: 1,
-              concluida: true,
-            });
-            const atualizado = await buscarUsuarioPorId(perfil.id);
-            await salvarPerfilAtivo(atualizado);
-          }
-        } catch (e) {
-          console.error(e);
-        }
-      };
-      salvar();
+      completeGame(CHALLENGES.length, CHALLENGES.length);
     }
   }, [isFinished]);
 
@@ -132,35 +112,6 @@ export default function LogicaAlienigenaScreen() {
       }, 1200);
     }
   };
-
-  // ─── Finished Screen ────────────────────────────────────────────────────────
-  if (isFinished) {
-    return (
-      <SafeAreaView style={styles.finishedSafeArea}>
-        <ConfettiEffect />
-        <View style={styles.finishedContainer}>
-          <Image
-            source={require('../../assets/images/happy-tuki.png')}
-            style={styles.finishedMascot}
-            resizeMode="contain"
-          />
-          <Text style={styles.finishedTitle}>Genial!</Text>
-          <Text style={styles.finishedSubtitle}>
-            Você decifrou toda a lógica alienígena! 👾🧠
-          </Text>
-          <TouchableOpacity
-            style={styles.backButtonLarge}
-            onPress={() => {
-              playSound('click');
-              router.back();
-            }}
-          >
-            <Text style={styles.backButtonText}>Voltar para a Trilha</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -263,6 +214,9 @@ export default function LogicaAlienigenaScreen() {
           </Text>
         </Animated.View>
       )}
+      {completionState && (
+        <GameCompletionModal state={completionState} onContinue={() => router.back()} />
+      )}
     </SafeAreaView>
   );
 }
@@ -287,55 +241,59 @@ function PatternSlot({
   const shake = useSharedValue(0);
   const bob = useSharedValue(0);
 
-  // Idle bob animation
+  // Animação de bob idle — sem withDelay dentro de withRepeat(reverse)
+  // pois o delay acumula a cada ciclo reverso e trava a animação.
+  // A fase é criada com um valor inicial diferente por slot.
   useEffect(() => {
+    const duration = 900;
+    const phase = (index % 4) * (duration / 4); // offset de fase sem delay
+    bob.value = index % 2 === 0 ? 6 : -6; // alternado por índice
     bob.value = withRepeat(
       withSequence(
-        withDelay(
-          index * 100,
-          withTiming(6, { duration: 800, easing: Easing.inOut(Easing.ease) })
-        ),
-        withTiming(-6, { duration: 800, easing: Easing.inOut(Easing.ease) })
+        withTiming(6, { duration, easing: Easing.inOut(Easing.ease) }),
+        withTiming(-6, { duration, easing: Easing.inOut(Easing.ease) })
       ),
       -1,
-      true
+      false // NÃO usar reverse: true — causa acúmulo de delay
     );
+    return () => cancelAnimation(bob);
   }, []);
 
-  // Dance animation on correct
+  // Dança ao acertar — só translateX, sem rotação (evita distorção)
   useEffect(() => {
     if (showCorrectDance) {
-      dance.value = withRepeat(
-        withSequence(
-          withTiming(-15, { duration: 100 }),
-          withTiming(15, { duration: 100 }),
-          withTiming(-15, { duration: 100 }),
-          withTiming(15, { duration: 100 }),
-          withTiming(0, { duration: 100 })
-        ),
-        2,
-        false
+      dance.value = withSequence(
+        withTiming(-12, { duration: 80 }),
+        withTiming(12, { duration: 80 }),
+        withTiming(-12, { duration: 80 }),
+        withTiming(12, { duration: 80 }),
+        withTiming(-8, { duration: 80 }),
+        withTiming(8, { duration: 80 }),
+        withTiming(0, { duration: 80 })
       );
+    } else {
+      cancelAnimation(dance);
+      dance.value = withSpring(0);
     }
   }, [showCorrectDance]);
 
-  // Shake on wrong
+  // Shake ao errar
   useEffect(() => {
     if (showWrongShake) {
       shake.value = withSequence(
-        withTiming(-8, { duration: 80 }),
-        withTiming(8, { duration: 80 }),
-        withTiming(-8, { duration: 80 }),
-        withTiming(0, { duration: 80 })
+        withTiming(-10, { duration: 70 }),
+        withTiming(10, { duration: 70 }),
+        withTiming(-8, { duration: 70 }),
+        withTiming(8, { duration: 70 }),
+        withSpring(0)
       );
     }
   }, [showWrongShake]);
 
   const animStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateY: bob.value + dance.value },
-      { translateX: shake.value },
-      { rotate: `${dance.value}deg` },
+      { translateY: bob.value },
+      { translateX: shake.value + dance.value }, // dance agora só em X
     ],
   }));
 

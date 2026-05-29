@@ -1,21 +1,54 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { ChevronLeft, Star, Lock, Book, Sparkles } from 'lucide-react-native';
+import { ChevronLeft, Star, Lock, Sparkles, CheckCircle2 } from 'lucide-react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { obterPerfilAtivo } from '../services/storage';
 import { buscarProgressoDoUsuario } from '../services/api';
 
+// ── Dados dos níveis ────────────────────────────────────────────────────────
 const BASE_LEVELS = [
-  { idLicao: 20, title: 'O Pequeno Tuki',      icon: 'egg-easter',      color: '#fbcfe8' },
-  { idLicao: 21, title: 'Reino das Cores',      icon: 'palette',         color: '#f9a8d4' },
-  { idLicao: 22, title: 'Amigos da Floresta',   icon: 'paw',             color: '#f472b6' },
-  { idLicao: 23, title: 'Viagem ao Mar',         icon: 'waves',           color: '#db2777' },
-  { idLicao: 24, title: 'Dragão Amigável',       icon: 'dragon',          color: '#be185d' },
-  { idLicao: 25, title: 'Noite Estrelada',       icon: 'weather-night',   color: '#9d174d' },
-  { idLicao: 26, title: 'Festa no Castelo',      icon: 'castle',          color: '#831843' },
+  { idLicao: 20, title: 'O Pequeno Tuki',     icon: 'egg-easter',    color: '#f472b6' },
+  { idLicao: 21, title: 'Reino das Cores',     icon: 'palette',       color: '#c026d3' },
+  { idLicao: 22, title: 'Amigos da Floresta',  icon: 'paw',           color: '#db2777' },
+  { idLicao: 23, title: 'Viagem ao Mar',       icon: 'waves',         color: '#0ea5e9' },
+  { idLicao: 24, title: 'Dragão Amigável',     icon: 'dragon',        color: '#7c3aed' },
+  { idLicao: 25, title: 'Noite Estrelada',     icon: 'weather-night', color: '#1d4ed8' },
+  { idLicao: 26, title: 'Festa no Castelo',    icon: 'castle',        color: '#be185d' },
 ];
 
+const TRAIL_IDS = BASE_LEVELS.map(l => l.idLicao);
+
+// ── Geometria do conector ───────────────────────────────────────────────────
+const { width: SCREEN_W } = Dimensions.get('window');
+const SCROLL_PAD  = 30;
+const TRAIL_PAD   = 20;
+const TRAIL_W     = SCREEN_W - (SCROLL_PAD + TRAIL_PAD) * 2;
+const WRAPPER_W   = TRAIL_W * 0.55;
+const LEFT_CX     = WRAPPER_W / 2;
+const RIGHT_CX    = TRAIL_W - WRAPPER_W / 2;
+const CONN_H      = 60;
+const DX          = RIGHT_CX - LEFT_CX;
+const CONN_LEN    = Math.sqrt(DX * DX + CONN_H * CONN_H);
+const CONN_ANGLE  = Math.atan2(CONN_H, DX) * (180 / Math.PI);
+const CONN_CX     = (LEFT_CX + RIGHT_CX) / 2;
+
+// ── Componente de conector ─────────────────────────────────────────────────
+function TrailConnector({ goingRight, completed }: { goingRight: boolean; completed: boolean }) {
+  return (
+    <View style={styles.connectorRow}>
+      <View
+        style={[
+          styles.connectorLine,
+          completed && styles.connectorLineDone,
+          { transform: [{ rotate: `${goingRight ? CONN_ANGLE : -CONN_ANGLE}deg` }] },
+        ]}
+      />
+    </View>
+  );
+}
+
+// ── Screen principal ────────────────────────────────────────────────────────
 export default function TrilhaHistoriasScreen() {
   const router = useRouter();
   const [completedIds, setCompletedIds] = useState<number[]>([]);
@@ -27,7 +60,9 @@ export default function TrilhaHistoriasScreen() {
           const perfil = await obterPerfilAtivo();
           if (perfil) {
             const progresso = await buscarProgressoDoUsuario(perfil.id);
-            const concluidas = progresso.filter(p => p.concluida).map(p => p.idLicao);
+            const concluidas = progresso
+              .filter(p => p.concluida && TRAIL_IDS.includes(p.idLicao))
+              .map(p => p.idLicao);
             setCompletedIds(concluidas);
           }
         } catch (e) {
@@ -40,16 +75,14 @@ export default function TrilhaHistoriasScreen() {
 
   const levels = BASE_LEVELS.map((level, idx) => {
     const concluido = completedIds.includes(level.idLicao);
-    const anterior = idx === 0 || completedIds.includes(BASE_LEVELS[idx - 1].idLicao);
-    const status = concluido ? 'completed' : anterior ? 'current' : 'locked';
+    const anterior  = idx === 0 || completedIds.includes(BASE_LEVELS[idx - 1].idLicao);
+    const status    = concluido ? 'completed' : anterior ? 'current' : 'locked';
     return { ...level, status };
   });
 
-  const total = levels.length;
-  const concluidos = levels.filter(l => l.status === 'completed').length;
-
   return (
     <SafeAreaView style={styles.container}>
+      {/* ── Header ── */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ChevronLeft size={28} color="#fff" />
@@ -59,69 +92,77 @@ export default function TrilhaHistoriasScreen() {
           <Text style={styles.subtitle}>Contos Mágicos ✨</Text>
         </View>
         <View style={styles.statsHeader}>
-          <Book size={20} color="#fff" />
-          <Text style={styles.statsText}>{concluidos}/{total}</Text>
+          <Star size={16} color="#fbbf24" fill="#fbbf24" />
+          <Text style={styles.statsText}>{completedIds.length}/{BASE_LEVELS.length}</Text>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.trailContainer}>
           {levels.map((level, index) => {
-            const isCenter = index % 3 === 0;
-            const isLeft = index % 3 === 1;
-            const isLocked = level.status === 'locked';
-            const isCurrent = level.status === 'current';
-            const isCompleted = level.status === 'completed';
+            const isLeft     = index % 2 === 0;
+            const isLocked   = level.status === 'locked';
+            const isCurrent  = level.status === 'current';
+            const isComplete = level.status === 'completed';
+            const goingRight = index % 2 === 1;
 
             return (
-              <View
-                key={level.idLicao}
-                style={[
-                  styles.levelWrapper,
-                  { alignSelf: isCenter ? 'center' : isLeft ? 'flex-start' : 'flex-end' },
-                ]}
-              >
-                <TouchableOpacity
-                  style={[
-                    styles.levelButton,
-                    { backgroundColor: isLocked ? '#fce7f3' : level.color },
-                    isCurrent && styles.currentLevel,
-                    isCompleted && styles.completedLevel,
-                  ]}
-                  disabled={isLocked}
-                  onPress={() => router.push(`/historia/${level.idLicao}` as any)}
-                >
-                  {isLocked ? (
-                    <Lock size={24} color="#f9a8d4" />
-                  ) : (
-                    <MaterialCommunityIcons name={level.icon as any} size={42} color="#fff" />
-                  )}
+              <React.Fragment key={level.idLicao}>
+                {index > 0 && (
+                  <TrailConnector
+                    goingRight={goingRight}
+                    completed={completedIds.includes(BASE_LEVELS[index - 1].idLicao)}
+                  />
+                )}
 
-                  {isCurrent && (
-                    <View style={styles.sparkleBadge}>
-                      <Sparkles size={16} color="#fbbf24" fill="#fbbf24" />
-                    </View>
-                  )}
-                  {isCompleted && (
-                    <View style={styles.checkBadge}>
-                      <Star size={14} color="#fff" fill="#fff" />
-                    </View>
-                  )}
-                </TouchableOpacity>
+                <View style={[styles.levelWrapper, { alignSelf: isLeft ? 'flex-start' : 'flex-end' }]}>
+                  <View style={[styles.levelNum, isLocked && styles.levelNumLocked]}>
+                    <Text style={styles.levelNumText}>{index + 1}</Text>
+                  </View>
 
-                <View style={styles.levelInfo}>
-                  <Text style={[styles.levelTitle, isLocked && styles.lockedText]}>
-                    {level.title}
-                  </Text>
-                  {isCompleted && (
-                    <View style={styles.completedStars}>
-                      <Star size={12} color="#fbbf24" fill="#fbbf24" />
-                      <Star size={12} color="#fbbf24" fill="#fbbf24" />
-                      <Star size={12} color="#fbbf24" fill="#fbbf24" />
-                    </View>
-                  )}
+                  <TouchableOpacity
+                    style={[
+                      styles.levelButton,
+                      { backgroundColor: isLocked ? '#fce7f3' : level.color },
+                      isCurrent  && styles.currentLevel,
+                      isComplete && styles.completedLevel,
+                    ]}
+                    disabled={isLocked}
+                    onPress={() => router.push(`/historia/${level.idLicao}` as any)}
+                    activeOpacity={0.8}
+                  >
+                    {isLocked ? (
+                      <Lock size={28} color="#f9a8d4" />
+                    ) : (
+                      <MaterialCommunityIcons name={level.icon as any} size={40} color="#fff" />
+                    )}
+
+                    {isCurrent && (
+                      <View style={styles.sparkleBadge}>
+                        <Sparkles size={14} color="#fbbf24" fill="#fbbf24" />
+                      </View>
+                    )}
+                    {isComplete && (
+                      <View style={styles.checkBadge}>
+                        <CheckCircle2 size={18} color="#fff" fill="#22c55e" strokeWidth={2} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+
+                  <View style={styles.levelInfo}>
+                    <Text style={[styles.levelTitle, isLocked && styles.lockedText]} numberOfLines={2}>
+                      {level.title}
+                    </Text>
+                    {isComplete && (
+                      <View style={styles.stars}>
+                        {[0, 1, 2].map(i => (
+                          <Star key={i} size={12} color="#fbbf24" fill="#fbbf24" />
+                        ))}
+                      </View>
+                    )}
+                  </View>
                 </View>
-              </View>
+              </React.Fragment>
             );
           })}
         </View>
@@ -132,95 +173,131 @@ export default function TrilhaHistoriasScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff1f2' },
+
+  // ── Header
   header: {
-    backgroundColor: '#ec4899',
+    backgroundColor: '#db2777',
     padding: 20,
     paddingTop: 40,
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    elevation: 6,
+    shadowColor: '#db2777',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
   },
-  backButton: {
-    padding: 8,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 12,
-  },
-  headerTextContainer: { flex: 1, marginLeft: 15 },
-  title: { color: '#fff', fontSize: 22, fontWeight: 'bold' },
-  subtitle: { color: '#fce7f3', fontSize: 14 },
+  backButton: { padding: 8, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 12 },
+  headerTextContainer: { flex: 1, marginLeft: 14 },
+  title:    { color: '#fff', fontSize: 22, fontWeight: '900' },
+  subtitle: { color: '#fce7f3', fontSize: 13, marginTop: 2 },
   statsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: 'rgba(0,0,0,0.18)',
+    paddingHorizontal: 12, paddingVertical: 7,
     borderRadius: 20,
-    gap: 6,
   },
-  statsText: { color: '#fff', fontWeight: 'bold' },
-  scrollContent: { padding: 30, paddingBottom: 100 },
-  trailContainer: { paddingHorizontal: 10 },
+  statsText: { color: '#fff', fontWeight: '900', fontSize: 14 },
+
+  // ── Scroll / container
+  scrollContent:  { paddingHorizontal: SCROLL_PAD, paddingTop: 28, paddingBottom: 100 },
+  trailContainer: { paddingHorizontal: TRAIL_PAD },
+
+  // ── Conector
+  connectorRow: {
+    height: CONN_H,
+    position: 'relative',
+  },
+  connectorLine: {
+    position: 'absolute',
+    left: CONN_CX - CONN_LEN / 2,
+    top: CONN_H / 2 - 3,
+    width: CONN_LEN,
+    height: 6,
+    backgroundColor: '#fecdd3',
+    borderRadius: 3,
+  },
+  connectorLineDone: {
+    backgroundColor: '#f472b6',
+  },
+
+  // ── Nó de nível
   levelWrapper: {
-    marginBottom: 60,
+    width: WRAPPER_W,
     alignItems: 'center',
-    width: '45%',
   },
-  levelButton: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+  levelNum: {
+    backgroundColor: '#fce7f3',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 4,
-    shadowColor: '#ec4899',
+    marginBottom: 6,
+  },
+  levelNumLocked: { backgroundColor: '#fce7f3' },
+  levelNumText: { color: '#db2777', fontSize: 11, fontWeight: '900' },
+
+  levelButton: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#db2777',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.25,
     shadowRadius: 6,
-    borderWidth: 6,
+    borderWidth: 5,
     borderColor: '#fff',
   },
   currentLevel: {
-    transform: [{ scale: 1.1 }],
     borderColor: '#f472b6',
     borderStyle: 'dashed',
+    shadowColor: '#ec4899',
+    shadowOpacity: 0.6,
+    shadowRadius: 14,
+    elevation: 10,
+    transform: [{ scale: 1.08 }],
   },
   completedLevel: {
-    borderColor: '#fbbf24',
+    borderColor: '#22c55e',
+    borderStyle: 'solid',
+    borderWidth: 4,
   },
   sparkleBadge: {
-    position: 'absolute',
-    top: -10,
-    right: -10,
+    position: 'absolute', top: -8, right: -8,
   },
   checkBadge: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
-    backgroundColor: '#22C55E',
-    width: 24,
-    height: 24,
+    position: 'absolute', top: -5, right: -5,
+    backgroundColor: '#fff',
     borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
+    padding: 1,
   },
+
   levelInfo: {
     marginTop: 10,
     alignItems: 'center',
     backgroundColor: '#fff',
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 15,
+    borderRadius: 14,
     elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    marginBottom: 4,
+    minWidth: WRAPPER_W * 0.9,
   },
   levelTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#9d174d',
-    textAlign: 'center',
+    fontSize: 13, fontWeight: '700',
+    color: '#9d174d', textAlign: 'center',
+    lineHeight: 18,
   },
   lockedText: { color: '#f9a8d4' },
-  completedStars: { flexDirection: 'row', gap: 2, marginTop: 4 },
+  stars: { flexDirection: 'row', gap: 2, marginTop: 4 },
 });

@@ -6,8 +6,8 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSpring, wit
 import * as Haptics from 'expo-haptics';
 import { playSound } from '../services/sound';
 import ConfettiEffect from '../components/ConfettiEffect';
-import { obterPerfilAtivo, salvarPerfilAtivo } from '../services/storage';
-import { registrarProgresso, buscarUsuarioPorId } from '../services/api';
+import { useGameCompletion } from '../hooks/useGameCompletion';
+import GameCompletionModal from '../components/GameCompletionModal';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -27,6 +27,7 @@ const SPAWN_INTERVAL = 1200;
 
 export default function DesafioFinalAlfabetizacaoScreen() {
   const router = useRouter();
+  const { completionState, completeGame } = useGameCompletion(7);
   const [isFinished, setIsFinished] = useState(false);
   const [score, setScore] = useState(0);
   const [spawnedItems, setSpawnedItems] = useState<FallingWord[]>([]);
@@ -82,25 +83,7 @@ export default function DesafioFinalAlfabetizacaoScreen() {
 
   useEffect(() => {
     if (isFinished) {
-      const salvar = async () => {
-        try {
-          const perfil = await obterPerfilAtivo();
-          if (perfil) {
-            await registrarProgresso({
-              idUsuario: perfil.id,
-              idLicao: 7, // ID for Desafio Final
-              pontuacao: score,
-              tentativas: 1,
-              concluida: true,
-            });
-            const atualizado = await buscarUsuarioPorId(perfil.id);
-            await salvarPerfilAtivo(atualizado);
-          }
-        } catch (e) {
-          console.error(e);
-        }
-      };
-      salvar();
+      completeGame(score, score);
     }
   }, [isFinished]);
 
@@ -177,6 +160,9 @@ export default function DesafioFinalAlfabetizacaoScreen() {
           );
         })}
       </View>
+      {completionState && (
+        <GameCompletionModal state={completionState} onContinue={() => router.back()} />
+      )}
     </SafeAreaView>
   );
 }
