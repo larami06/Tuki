@@ -97,19 +97,22 @@ public class ProgressoService : IProgressoService
             inventario.LicoesConcluidas += 1;
         }
 
-        // 2. Aumentar Estrelas e Moedas
+        // 2. Aumentar Estrelas, Moedas e XP
         int estrelasGanhas = 3;
         int moedasGanhas = 10;
+        int xpGanho = 20;
 
         if (pontuacao.HasValue)
         {
-            // Cada acerto dá 3 estrelas e 5 moedas
+            // Cada acerto dá 3 estrelas, 5 moedas e 15 XP
             estrelasGanhas = (int)pontuacao.Value * 3;
             moedasGanhas = (int)pontuacao.Value * 5;
+            xpGanho = (int)pontuacao.Value * 15;
         }
 
         inventario.Estrelas += estrelasGanhas;
         inventario.Moedas += moedasGanhas;
+        inventario.XP += xpGanho;
 
         // 3. Atualizar Streak (Ofensiva diária)
         var hoje = DateOnly.FromDateTime(DateTime.Today);

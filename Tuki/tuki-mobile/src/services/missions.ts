@@ -17,7 +17,7 @@ export interface MissionDef {
   descricao: string;
   meta: number;
   tipo: MissionTipo;
-  recompensa: { moedas?: number; estrelas?: number; xp?: number; rubis?: number };
+  recompensa: { moedas?: number; estrelas?: number; xp?: number; diamantes?: number };
 }
 
 export interface MissionProgress extends MissionDef {
@@ -30,7 +30,7 @@ export interface MissionCompletion {
   mission: MissionProgress;
   progrediu: boolean;
   acabouDeCompletar: boolean;
-  recompensaGanha?: { moedas?: number; estrelas?: number; xp?: number; rubis?: number };
+  recompensaGanha?: { moedas?: number; estrelas?: number; xp?: number; diamantes?: number };
 }
 
 // ─── Pool de missões (10 ao total, 3 sorteadas por dia) ──────────────────────
@@ -82,21 +82,21 @@ const MISSIONS_POOL: MissionDef[] = [
     titulo: 'Nota 10! 🌟',
     descricao: 'Termine um jogo sem errar nada',
     meta: 1, tipo: 'perfeito',
-    recompensa: { rubis: 1, moedas: 20 },
+    recompensa: { diamantes: 1, moedas: 20 },
   },
   {
     id: 'perfeito_3',
     titulo: 'Gênio! 💎',
     descricao: 'Termine 3 jogos sem errar nada',
     meta: 3, tipo: 'perfeito',
-    recompensa: { rubis: 2, moedas: 50 },
+    recompensa: { diamantes: 2, moedas: 50 },
   },
   {
     id: 'variedade',
     titulo: 'Explorador(a)! 🗺️',
     descricao: 'Jogue 1 atividade de cada trilha',
     meta: 3, tipo: 'variedade',
-    recompensa: { moedas: 60, rubis: 1 },
+    recompensa: { moedas: 60, diamantes: 1 },
   },
   {
     id: 'streak_hoje',

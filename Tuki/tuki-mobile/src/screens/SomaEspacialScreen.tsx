@@ -6,6 +6,7 @@ import {
     TouchableOpacity,
     SafeAreaView,
     Dimensions,
+    BackHandler,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, RefreshCw } from 'lucide-react-native';
@@ -27,6 +28,7 @@ import { playSound } from '../services/sound';
 import ConfettiEffect from '../components/ConfettiEffect';
 import { useGameCompletion } from '../hooks/useGameCompletion';
 import GameCompletionModal from '../components/GameCompletionModal';
+import ExitConfirmModal from '../components/ExitConfirmModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -61,6 +63,7 @@ export default function SomaEspacialScreen() {
     const [showResult, setShowResult] = useState(false);
     const [isFinished, setIsFinished] = useState(false);
     const [isTransitioning, setIsTransitioning] = useState(false);
+    const [showExitModal, setShowExitModal] = useState(false);
 
     const challenge = CHALLENGES[currentIndex];
     const totalStars = challenge.groupA + challenge.groupB;
@@ -70,6 +73,16 @@ export default function SomaEspacialScreen() {
     const portalScale = useSharedValue(1);
     const portalRotate = useSharedValue(0);
     const resultScale = useSharedValue(0);
+
+    // ─── Back Handler ────────────────────────────────────────────────────────
+    useEffect(() => {
+        const backAction = () => {
+            setShowExitModal(true);
+            return true;
+        };
+        const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+        return () => backHandler.remove();
+    }, []);
 
     // ─── Animação do portal ──────────────────────────────────────────────────
     useEffect(() => {
@@ -166,7 +179,7 @@ export default function SomaEspacialScreen() {
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity
-                    onPress={() => { playSound('click'); router.back(); }}
+                    onPress={() => { playSound('click'); setShowExitModal(true); }}
                     style={styles.backButton}
                 >
                     <ChevronLeft size={26} color="#fff" />
@@ -283,6 +296,12 @@ export default function SomaEspacialScreen() {
             {completionState && (
                 <GameCompletionModal state={completionState} onContinue={() => router.back()} />
             )}
+
+            <ExitConfirmModal 
+                visible={showExitModal} 
+                onCancel={() => setShowExitModal(false)} 
+                onConfirm={() => { setShowExitModal(false); router.back(); }} 
+            />
         </SafeAreaView>
     );
 }

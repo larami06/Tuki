@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Modal, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { ChevronLeft, Star, Lock, Play, CheckCircle2 } from 'lucide-react-native';
+import { ChevronLeft, Star, Lock, Play, CheckCircle2, X } from 'lucide-react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { obterPerfilAtivo } from '../services/storage';
 import { buscarProgressoDoUsuario } from '../services/api';
@@ -52,6 +52,8 @@ function TrailConnector({ goingRight, completed }: { goingRight: boolean; comple
 export default function TrilhaAlfabetizacaoScreen() {
   const router = useRouter();
   const [completedActivities, setCompletedActivities] = useState<number[]>([]);
+  const [modalNivel, setModalNivel] = useState<{ visivel: boolean; nivel: any | null }>({ visivel: false, nivel: null });
+  const [loading, setLoading] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -97,7 +99,7 @@ export default function TrilhaAlfabetizacaoScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.trailContainer}>
           {levels.map((level, index) => {
             const isLeft     = index % 2 === 0;
@@ -128,7 +130,7 @@ export default function TrilhaAlfabetizacaoScreen() {
                       isComplete && styles.completedLevel,
                     ]}
                     disabled={isLocked}
-                    onPress={() => router.push(level.route as any)}
+                    onPress={() => setModalNivel({ visivel: true, nivel: level })}
                     activeOpacity={0.8}
                   >
                     {isLocked ? (
@@ -167,6 +169,62 @@ export default function TrilhaAlfabetizacaoScreen() {
           })}
         </View>
       </ScrollView>
+
+      {/* Modal de Resumo do Nível */}
+      <Modal transparent animationType="slide" visible={modalNivel.visivel}>
+        {modalNivel.nivel && (
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalBox, { backgroundColor: modalNivel.nivel.color }]}>
+              <TouchableOpacity
+                style={styles.modalClose}
+                onPress={() => setModalNivel({ visivel: false, nivel: null })}
+              >
+                <X size={24} color="#fff" />
+              </TouchableOpacity>
+              
+              <View style={styles.modalIconWrapper}>
+                <MaterialCommunityIcons name={modalNivel.nivel.icon as any} size={50} color={modalNivel.nivel.color} />
+              </View>
+              
+              <Text style={styles.modalTitulo}>{modalNivel.nivel.title}</Text>
+              
+              {modalNivel.nivel.status === 'completed' ? (
+                <View style={[styles.modalMeta, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                  <CheckCircle2 size={18} color="#fff" />
+                  <Text style={styles.modalMetaText}>Você já concluiu esta atividade!</Text>
+                </View>
+              ) : (
+                <Text style={styles.modalTeaser}>Prepare-se para este desafio! Você consegue!</Text>
+              )}
+              
+              <TouchableOpacity
+                onPress={() => {
+                  const rota = modalNivel.nivel.route;
+                  setModalNivel({ visivel: false, nivel: null });
+                  setLoading(true);
+                  setTimeout(() => {
+                    setLoading(false);
+                    router.push(rota);
+                  }, 800);
+                }}
+                style={styles.modalBotaoComecar}
+              >
+                <Text style={styles.modalBotaoComecarText}>
+                  {modalNivel.nivel.status === 'completed' ? 'Jogar Novamente 🔄' : 'Começar 🚀'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </Modal>
+
+      {/* Loading Overlay */}
+      {loading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#fff" />
+          <Text style={styles.loadingText}>Carregando atividade...</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -288,4 +346,18 @@ const styles = StyleSheet.create({
   },
   lockedText: { color: '#9ca3af' },
   stars: { flexDirection: 'row', gap: 2, marginTop: 5 },
+
+  // ── Modals & Loading
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalBox: { width: '100%', borderRadius: 28, padding: 30, alignItems: 'center', elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 10 },
+  modalClose: { position: 'absolute', top: 16, right: 16, padding: 8, backgroundColor: 'rgba(0,0,0,0.15)', borderRadius: 20 },
+  modalIconWrapper: { width: 90, height: 90, borderRadius: 45, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', marginBottom: 20, elevation: 5 },
+  modalTitulo: { fontSize: 28, fontWeight: '900', color: '#fff', textAlign: 'center', marginBottom: 16 },
+  modalMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 16, marginBottom: 20 },
+  modalMetaText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  modalTeaser: { fontSize: 16, color: 'rgba(255,255,255,0.9)', textAlign: 'center', marginBottom: 24, fontWeight: '600', lineHeight: 22 },
+  modalBotaoComecar: { backgroundColor: '#fff', paddingHorizontal: 32, paddingVertical: 16, borderRadius: 20, width: '100%', alignItems: 'center', elevation: 4 },
+  modalBotaoComecarText: { fontSize: 18, fontWeight: '900', color: '#1F2937' },
+  loadingOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15,23,42,0.9)', justifyContent: 'center', alignItems: 'center', zIndex: 999 },
+  loadingText: { color: '#fff', fontSize: 18, fontWeight: 'bold', marginTop: 16 },
 });

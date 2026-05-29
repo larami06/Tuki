@@ -11,4 +11,5 @@ public interface IUsuarioRepository
     Task DeleteAsync(int id);
     Task<IEnumerable<Usuario>> GetByResponsavelIdAsync(int responsavelId);
     Task<IEnumerable<Recompensa>> GetRecompensasAsync(int idUsuario);
+    Task AdicionarRecompensaPadraoAsync(int idUsuario, string identificadorAvatar);
 }

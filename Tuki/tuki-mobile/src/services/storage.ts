@@ -97,18 +97,35 @@ export async function verificarJogouHoje(idUsuario: number): Promise<boolean> {
     return data === new Date().toDateString();
 }
 
-// ─── RUBIS (moeda premium, raros) ─────────────────────────────────────────────
-const CHAVE_RUBIS = '@tuki_rubis';
+// ─── DIAMANTES (moeda premium, raros) ─────────────────────────────────────────
+const CHAVE_DIAMANTES = '@tuki_diamantes';
+const CHAVE_RUBIS_LEGADO = '@tuki_rubis'; // chave antiga — migração transparente
 
-export async function obterRubis(idUsuario: number): Promise<number> {
-    const key = `${CHAVE_RUBIS}_${idUsuario}`;
+export async function obterDiamantes(idUsuario: number): Promise<number> {
+    const key = `${CHAVE_DIAMANTES}_${idUsuario}`;
     const val = await AsyncStorage.getItem(key);
-    return val ? parseInt(val, 10) : 0;
+
+    if (val !== null) {
+        return parseInt(val, 10);
+    }
+
+    // Migração transparente: verifica se existe saldo na chave antiga (rubi)
+    const keyLegado = `${CHAVE_RUBIS_LEGADO}_${idUsuario}`;
+    const valLegado = await AsyncStorage.getItem(keyLegado);
+    if (valLegado !== null) {
+        const saldoMigrado = parseInt(valLegado, 10);
+        // Salva na nova chave e remove a antiga
+        await AsyncStorage.setItem(key, String(saldoMigrado));
+        await AsyncStorage.removeItem(keyLegado);
+        return saldoMigrado;
+    }
+
+    return 0;
 }
 
-export async function adicionarRubis(idUsuario: number, quantidade: number): Promise<number> {
-    const key = `${CHAVE_RUBIS}_${idUsuario}`;
-    const atual = await obterRubis(idUsuario);
+export async function adicionarDiamantes(idUsuario: number, quantidade: number): Promise<number> {
+    const key = `${CHAVE_DIAMANTES}_${idUsuario}`;
+    const atual = await obterDiamantes(idUsuario);
     const novo = atual + quantidade;
     await AsyncStorage.setItem(key, String(novo));
     return novo;
@@ -150,6 +167,12 @@ export async function atualizarStreak(idUsuario: number): Promise<StreakInfo> {
     await AsyncStorage.setItem(keyStreak, String(novoStreak));
 
     return { streakNovo: novoStreak, subiu: true, resetou };
+}
+
+// Leitura do streak atual sem modificá-lo (para exibição no HUD)
+export async function obterStreakAtual(idUsuario: number): Promise<number> {
+    const keyStreak = `@tuki_streak_${idUsuario}`;
+    return parseInt((await AsyncStorage.getItem(keyStreak)) || '0', 10);
 }
 
 export async function obterAtividadesConcluidas() {

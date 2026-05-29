@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions, BackHandler } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, withSequence, Easing, FadeIn, ZoomIn, BounceIn } from 'react-native-reanimated';
@@ -7,6 +7,7 @@ import * as Haptics from 'expo-haptics';
 import { playSound } from '../services/sound';
 import { useGameCompletion } from '../hooks/useGameCompletion';
 import GameCompletionModal from '../components/GameCompletionModal';
+import ExitConfirmModal from '../components/ExitConfirmModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -54,6 +55,7 @@ export default function FrasesDivertidasScreen() {
   const [disabled, setDisabled] = useState(false);
   const [showFeedback, setShowFeedback] = useState<'correct' | 'wrong' | null>(null);
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
+  const [showExitModal, setShowExitModal] = useState(false);
 
   const challenge = CHALLENGES[currentIndex];
   
@@ -64,6 +66,16 @@ export default function FrasesDivertidasScreen() {
       completeGame(CHALLENGES.length, CHALLENGES.length);
     }
   }, [isFinished]);
+
+  // ─── Back Handler ────────────────────────────────────────────────────────
+  useEffect(() => {
+    const backAction = () => {
+      setShowExitModal(true);
+      return true;
+    };
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => backHandler.remove();
+  }, []);
 
   const handleSelect = (option: any) => {
     if (disabled) return;
@@ -113,7 +125,7 @@ export default function FrasesDivertidasScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => { playSound('click'); router.back(); }} style={styles.backButton}>
+        <TouchableOpacity onPress={() => { playSound('click'); setShowExitModal(true); }} style={styles.backButton}>
           <ChevronLeft size={28} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Frases Divertidas</Text>
@@ -178,6 +190,12 @@ export default function FrasesDivertidasScreen() {
       {completionState && (
         <GameCompletionModal state={completionState} onContinue={() => router.back()} />
       )}
+      
+      <ExitConfirmModal 
+        visible={showExitModal} 
+        onCancel={() => setShowExitModal(false)} 
+        onConfirm={() => { setShowExitModal(false); router.back(); }} 
+      />
     </SafeAreaView>
   );
 }

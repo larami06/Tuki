@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, SafeAreaView, ScrollView,
-  TouchableOpacity, Image, Modal, ActivityIndicator, Platform
+  TouchableOpacity, Image, Modal, ActivityIndicator, Platform, Alert
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ShoppingBag, Coins, Home as HomeIcon, Book, User, X } from 'lucide-react-native';
@@ -30,6 +30,9 @@ export default function LojaScreen() {
   const [comprando, setComprando] = useState<number | null>(null);
   const [modal, setModal] = useState<{ visivel: boolean; mensagem: string; sucesso: boolean }>({
     visivel: false, mensagem: '', sucesso: false
+  });
+  const [modalConfirmacao, setModalConfirmacao] = useState<{ visivel: boolean; item: RecompensaDto | null }>({
+    visivel: false, item: null
   });
 
   useEffect(() => {
@@ -96,6 +99,10 @@ export default function LojaScreen() {
     }
   };
 
+  const confirmarCompra = (item: RecompensaDto) => {
+    setModalConfirmacao({ visivel: true, item });
+  };
+
   const avatares = itens.filter(i => i.tipo === 'avatar');
   const fundos = itens.filter(i => i.tipo === 'fundo');
 
@@ -134,7 +141,7 @@ export default function LojaScreen() {
                   ) : (
                     <TouchableOpacity
                       style={styles.comprarBtn}
-                      onPress={() => comprar(item)}
+                      onPress={() => confirmarCompra(item)}
                       disabled={comprando === item.id}
                     >
                       {comprando === item.id
@@ -168,7 +175,7 @@ export default function LojaScreen() {
                   ) : (
                     <TouchableOpacity
                       style={styles.comprarBtn}
-                      onPress={() => comprar(item)}
+                      onPress={() => confirmarCompra(item)}
                       disabled={comprando === item.id}
                     >
                       {comprando === item.id
@@ -207,6 +214,40 @@ export default function LojaScreen() {
                 <Text style={styles.modalBtnText}>Ver Inventário</Text>
               </TouchableOpacity>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de confirmação de compra */}
+      <Modal transparent animationType="fade" visible={modalConfirmacao.visivel}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <TouchableOpacity style={styles.modalClose} onPress={() => setModalConfirmacao({ visivel: false, item: null })}>
+              <X size={20} color="#6b7280" />
+            </TouchableOpacity>
+            <Text style={styles.modalEmoji}>🛒</Text>
+            <Text style={[styles.modalMsg, { color: '#1f2937' }]}>
+              Tem certeza que deseja comprar "{modalConfirmacao.item?.nome}" por {modalConfirmacao.item?.valor} moedas?
+            </Text>
+            <View style={styles.modalBtnRow}>
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: '#f3f4f6', flex: 1, marginRight: 10 }]}
+                onPress={() => setModalConfirmacao({ visivel: false, item: null })}
+              >
+                <Text style={[styles.modalBtnText, { color: '#4b5563' }]}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, { flex: 1, alignItems: 'center' }]}
+                onPress={() => {
+                  if (modalConfirmacao.item) {
+                    comprar(modalConfirmacao.item);
+                    setModalConfirmacao({ visivel: false, item: null });
+                  }
+                }}
+              >
+                <Text style={styles.modalBtnText}>Comprar</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -311,9 +352,10 @@ const styles = StyleSheet.create({
   modalMsg: { fontSize: 16, fontWeight: '700', textAlign: 'center', marginBottom: 20, lineHeight: 22 },
   modalBtn: {
     backgroundColor: '#7c3aed', paddingHorizontal: 24,
-    paddingVertical: 12, borderRadius: 16,
+    paddingVertical: 12, borderRadius: 16, alignItems: 'center', justifyContent: 'center'
   },
   modalBtnText: { color: '#fff', fontWeight: '900', fontSize: 15 },
+  modalBtnRow: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginTop: 10 },
   navBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     flexDirection: 'row', justifyContent: 'space-around',

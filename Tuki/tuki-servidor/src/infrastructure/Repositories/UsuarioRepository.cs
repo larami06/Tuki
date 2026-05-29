@@ -66,4 +66,27 @@ public class UsuarioRepository : IUsuarioRepository
             .Select(ur => ur.Recompensa!)
             .ToListAsync();
     }
+
+    public async Task AdicionarRecompensaPadraoAsync(int idUsuario, string identificadorAvatar)
+    {
+        // Busca a recompensa correspondente ao avatar padrão (ex: "avatar_1")
+        var recompensa = await _context.Recompensas
+            .FirstOrDefaultAsync(r => r.Identificador == identificadorAvatar && r.Tipo == "avatar");
+
+        if (recompensa == null) return; // Recompensa não cadastrada — nada a fazer
+
+        // Verifica se já está no inventário para evitar duplicata
+        var jaAdquirida = await _context.UsuariosRecompensas
+            .AnyAsync(ur => ur.IdUsuario == idUsuario && ur.IdRecompensa == recompensa.IdRecompensa);
+
+        if (!jaAdquirida)
+        {
+            _context.UsuariosRecompensas.Add(new UsuarioRecompensa
+            {
+                IdUsuario = idUsuario,
+                IdRecompensa = recompensa.IdRecompensa
+            });
+            await _context.SaveChangesAsync();
+        }
+    }
 }

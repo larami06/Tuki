@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, StatusBar, Image } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { API_URL, buscarProgressoDoUsuario, ProgressoResponseDto, buscarUsuarioPorId } from '../services/api';
 import { obterPerfilAtivo, salvarPerfilAtivo } from '../services/storage';
 import { BookOpen, Star, Flame, TrendingUp, Trophy, Target, Home, Book, LogOut, ShoppingBag, User } from 'lucide-react-native';
@@ -35,29 +35,31 @@ export default function PerfilScreen() {
     router.replace('/selecionar-perfil');
   };
 
-  useEffect(() => {
-    const carregarDados = async () => {
-      const perfil = await obterPerfilAtivo();
-      if (perfil) {
-        try {
-          const perfilAtualizado = await buscarUsuarioPorId(perfil.id);
-          setUsuario(perfilAtualizado);
-          await salvarPerfilAtivo(perfilAtualizado);
-        } catch (err) {
-          console.error("Erro ao carregar perfil atualizado do banco:", err);
-          setUsuario(perfil);
+  useFocusEffect(
+    useCallback(() => {
+      const carregarDados = async () => {
+        const perfil = await obterPerfilAtivo();
+        if (perfil) {
+          try {
+            const perfilAtualizado = await buscarUsuarioPorId(perfil.id);
+            setUsuario(perfilAtualizado);
+            await salvarPerfilAtivo(perfilAtualizado);
+          } catch (err) {
+            console.error("Erro ao carregar perfil atualizado do banco:", err);
+            setUsuario(perfil);
+          }
+
+          try {
+            const prog = await buscarProgressoDoUsuario(perfil.id);
+            setProgressos(prog);
+          } catch (err) {
+            console.error("Erro ao carregar progresso:", err);
+          }
         }
-        
-        try {
-          const prog = await buscarProgressoDoUsuario(perfil.id);
-          setProgressos(prog);
-        } catch (err) {
-          console.error("Erro ao carregar progresso:", err);
-        }
-      }
-    };
-    carregarDados();
-  }, []);
+      };
+      carregarDados();
+    }, [])
+  );
 
   // Função para calcular progresso médio por matéria
   const calcularProgressoPorMateria = (materia: string) => {
@@ -74,7 +76,7 @@ export default function PerfilScreen() {
 
   const progAlfabetizacao = calcularProgressoPorMateria('Alfabetizacao');
   const progMatematica = calcularProgressoPorMateria('Matematica');
-  const progCognitivo = calcularProgressoPorMateria('Cognitivo');
+  const progHistorias = calcularProgressoPorMateria('Historias');
 
   return (
     <SafeAreaView style={styles.container}>
@@ -164,11 +166,11 @@ export default function PerfilScreen() {
 
           <View style={styles.progressCard}>
             <View style={styles.progressRow}>
-              <Text style={styles.progressLabel}>Cognitivo</Text>
-              <Text style={styles.progressPercent}>{progCognitivo}%</Text>
+              <Text style={styles.progressLabel}>Histórias</Text>
+              <Text style={styles.progressPercent}>{progHistorias}%</Text>
             </View>
             <View style={styles.subjectBarBg}>
-              <View style={[styles.subjectBarFill, { width: `${progCognitivo}%`, backgroundColor: '#22c55e' }]} />
+              <View style={[styles.subjectBarFill, { width: `${progHistorias}%`, backgroundColor: '#22c55e' }]} />
             </View>
           </View>
         </View>

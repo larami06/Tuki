@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, SafeAreaView,
-  Animated, Platform
+  Animated, Platform, BackHandler
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, ChevronRight, Star, CheckCircle, XCircle } from 'lucide-react-native';
@@ -9,6 +9,7 @@ import { obterPerfilAtivo, salvarPerfilAtivo } from '../services/storage';
 import { registrarProgresso, buscarUsuarioPorId } from '../services/api';
 import { playSound } from '../services/sound';
 import ConfettiEffect from '../components/ConfettiEffect';
+import ExitConfirmModal from '../components/ExitConfirmModal';
 
 const PAGINAS = [
   {
@@ -59,12 +60,23 @@ export default function HistoriaLuaScreen() {
   const [fase, setFase] = useState<Fase>('lendo');
   const [respostaIdx, setRespostaIdx] = useState<number | null>(null);
   const [mostrarConfete, setMostrarConfete] = useState(false);
+  const [showExitModal, setShowExitModal] = useState(false);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   const pagina = PAGINAS[paginaAtual];
   const isUltima = paginaAtual === PAGINAS.length - 1;
   const acertou = respostaIdx === QUIZ.correta;
+
+  // ─── Back Handler ────────────────────────────────────────────────────────
+  React.useEffect(() => {
+    const backAction = () => {
+      setShowExitModal(true);
+      return true;
+    };
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => backHandler.remove();
+  }, []);
 
   const trocarPagina = (proxima: number) => {
     Animated.parallel([
@@ -125,7 +137,7 @@ export default function HistoriaLuaScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => { playSound('click'); setShowExitModal(true); }}>
           <ChevronLeft size={26} color="rgba(255,255,255,0.85)" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>O Mistério da Lua</Text>
@@ -258,6 +270,12 @@ export default function HistoriaLuaScreen() {
           </View>
         </View>
       )}
+
+      <ExitConfirmModal 
+        visible={showExitModal} 
+        onCancel={() => setShowExitModal(false)} 
+        onConfirm={() => { setShowExitModal(false); router.back(); }} 
+      />
     </SafeAreaView>
   );
 }

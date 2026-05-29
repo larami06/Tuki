@@ -36,6 +36,11 @@ public class UsuarioService : IUsuarioService
         var usuario = _mapper.Map<Usuario>(dto);
         await _repository.AddAsync(usuario);
         await _inventarioRepository.AddAsync(new Inventario { IdUsuario = usuario.IdUsuario });
+
+        // Garante que o avatar padrão está registrado no inventário do usuário
+        // (corrige bug: avatar padrão não aparecia ao comprar novos itens)
+        await _repository.AdicionarRecompensaPadraoAsync(usuario.IdUsuario, dto.Avatar);
+
         return _mapper.Map<UsuarioResponseDto>(usuario);
     }
 

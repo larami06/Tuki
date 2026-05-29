@@ -14,6 +14,7 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Estrelas, opt => opt.MapFrom(src => src.Inventario != null ? src.Inventario.Estrelas : 0))
             .ForMember(dest => dest.LicoesConcluidas, opt => opt.MapFrom(src => src.Inventario != null ? src.Inventario.LicoesConcluidas : 0))
             .ForMember(dest => dest.StreakAtual, opt => opt.MapFrom(src => src.Inventario != null ? src.Inventario.StreakAtual : 0))
+            .ForMember(dest => dest.UltimaAtividade, opt => opt.MapFrom(src => src.Inventario != null ? src.Inventario.UltimaAtividade : null))
             .ForMember(dest => dest.XP, opt => opt.MapFrom(src => src.Inventario != null ? src.Inventario.XP : 0));
 
         CreateMap<UsuarioCreateDto, Usuario>();

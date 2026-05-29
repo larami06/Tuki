@@ -1,13 +1,14 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, SafeAreaView,
-  Animated, Platform
+  Animated, Platform, BackHandler
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, ChevronRight, Star, CheckCircle, XCircle } from 'lucide-react-native';
 import { playSound } from '../services/sound';
 import { useGameCompletion } from '../hooks/useGameCompletion';
 import GameCompletionModal from '../components/GameCompletionModal';
+import ExitConfirmModal from '../components/ExitConfirmModal';
 import HISTORIAS from '../data/trilhaHistoriasData';
 
 type Fase = 'lendo' | 'quiz' | 'resultado';
@@ -26,6 +27,7 @@ export default function HistoriaTrilhaScreen({ idLicao }: Props) {
   const [paginaAtual, setPaginaAtual] = useState(0);
   const [fase, setFase] = useState<Fase>('lendo');
   const [respostaIdx, setRespostaIdx] = useState<number | null>(null);
+  const [showExitModal, setShowExitModal] = useState(false);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
 
@@ -46,6 +48,16 @@ export default function HistoriaTrilhaScreen({ idLicao }: Props) {
   const isUltima = paginaAtual === paginas.length - 1;
   const acertou = respostaIdx === quiz.correta;
   const bgAtual = fase === 'lendo' ? pagina.bg : '#FAFAFA';
+
+  // ─── Back Handler ────────────────────────────────────────────────────────
+  React.useEffect(() => {
+    const backAction = () => {
+      setShowExitModal(true);
+      return true;
+    };
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => backHandler.remove();
+  }, []);
 
   const trocarPagina = (proxima: number) => {
     Animated.parallel([
@@ -87,7 +99,7 @@ export default function HistoriaTrilhaScreen({ idLicao }: Props) {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => { playSound('click'); setShowExitModal(true); }}>
           <ChevronLeft size={26} color="#374151" />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>{config.titulo}</Text>
@@ -191,6 +203,12 @@ export default function HistoriaTrilhaScreen({ idLicao }: Props) {
       {completionState && (
         <GameCompletionModal state={completionState} onContinue={() => router.back()} />
       )}
+
+      <ExitConfirmModal 
+        visible={showExitModal} 
+        onCancel={() => setShowExitModal(false)} 
+        onConfirm={() => { setShowExitModal(false); router.back(); }} 
+      />
     </SafeAreaView>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions, BackHandler } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, CheckCircle, XCircle } from 'lucide-react-native';
 import Animated, { FadeIn, FadeOut, BounceIn } from 'react-native-reanimated';
@@ -7,6 +7,7 @@ import { playSound } from '../services/sound';
 import { useEffect } from 'react';
 import { useGameCompletion } from '../hooks/useGameCompletion';
 import GameCompletionModal from '../components/GameCompletionModal';
+import ExitConfirmModal from '../components/ExitConfirmModal';
 
 const CHALLENGES = [
   { word: 'BELHA', missing: 'A', emoji: '🐝', completeWord: 'ABELHA' },
@@ -33,6 +34,7 @@ export default function VogaisMagicasScreen() {
   const [failedChallenges, setFailedChallenges] = useState<any[]>([]);
   const [isReviewMode, setIsReviewMode] = useState(false);
   const [showReviewMessage, setShowReviewMessage] = useState(false);
+  const [showExitModal, setShowExitModal] = useState(false);
 
   const currentChallenge = activeChallenges[currentIndex] || { word: '', missing: '', emoji: '', completeWord: '' };
   // O jogo só termina quando acabam os desafios ativos E não há mais erros na revisão
@@ -61,6 +63,16 @@ export default function VogaisMagicasScreen() {
       completeGame(score, CHALLENGES.length);
     }
   }, [isFinished]);
+
+  // ─── Back Handler ────────────────────────────────────────────────────────
+  useEffect(() => {
+    const backAction = () => {
+      setShowExitModal(true);
+      return true;
+    };
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => backHandler.remove();
+  }, []);
 
   const handleSelectVowel = (vowel: string) => {
     if (showResult || showReviewMessage) return;
@@ -109,7 +121,7 @@ export default function VogaisMagicasScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => { playSound('click'); router.back(); }} style={styles.backButton}>
+        <TouchableOpacity onPress={() => { playSound('click'); setShowExitModal(true); }} style={styles.backButton}>
           <ChevronLeft size={28} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Vogais Mágicas</Text>
@@ -184,6 +196,12 @@ export default function VogaisMagicasScreen() {
       {completionState && (
         <GameCompletionModal state={completionState} onContinue={() => router.back()} />
       )}
+      
+      <ExitConfirmModal 
+        visible={showExitModal} 
+        onCancel={() => setShowExitModal(false)} 
+        onConfirm={() => { setShowExitModal(false); router.back(); }} 
+      />
     </SafeAreaView>
   );
 }

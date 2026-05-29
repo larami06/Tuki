@@ -3,9 +3,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { obterMissoesHoje, atualizarMissoes } from '../../services/missions';
 import type { GameReward } from '../../services/rewards';
 
-const REWARD_PERFEITO: GameReward = { moedas: 20, estrelas: 5, xp: 25, rubis: 0, perfeito: true };
-const REWARD_NORMAL:   GameReward = { moedas: 15, estrelas: 4, xp: 20, rubis: 0, perfeito: false };
-const REWARD_RUBYWIN:  GameReward = { moedas: 50, estrelas: 15, xp: 50, rubis: 2, perfeito: true };
+const REWARD_PERFEITO: GameReward = { moedas: 20, estrelas: 5, xp: 25, diamantes: 0, perfeito: true };
+const REWARD_NORMAL:   GameReward = { moedas: 15, estrelas: 4, xp: 20, diamantes: 0, perfeito: false };
+const REWARD_RUBYWIN:  GameReward = { moedas: 50, estrelas: 15, xp: 50, diamantes: 2, perfeito: true };
 
 beforeEach(async () => {
   await AsyncStorage.clear();
@@ -86,7 +86,7 @@ describe('atualizarMissoes — progressão por tipo', () => {
   it('jogo perfeito incrementa missão do tipo "perfeito"', async () => {
     const chave = `@tuki_missoes_30_${new Date().toDateString()}`;
     await AsyncStorage.setItem(chave, JSON.stringify([
-      { id: 'perfeito_1', titulo: 'Nota 10!', descricao: '', meta: 1, tipo: 'perfeito', recompensa: { rubis: 1 }, progresso: 0, concluida: false, recompensaColetada: false },
+      { id: 'perfeito_1', titulo: 'Nota 10!', descricao: '', meta: 1, tipo: 'perfeito', recompensa: { diamantes: 1 }, progresso: 0, concluida: false, recompensaColetada: false },
     ]));
 
     const resultados = await atualizarMissoes(30, 34, REWARD_PERFEITO, false);
@@ -97,7 +97,7 @@ describe('atualizarMissoes — progressão por tipo', () => {
   it('jogo não-perfeito NÃO incrementa missão do tipo "perfeito"', async () => {
     const chave = `@tuki_missoes_31_${new Date().toDateString()}`;
     await AsyncStorage.setItem(chave, JSON.stringify([
-      { id: 'perfeito_1', titulo: 'Nota 10!', descricao: '', meta: 1, tipo: 'perfeito', recompensa: { rubis: 1 }, progresso: 0, concluida: false, recompensaColetada: false },
+      { id: 'perfeito_1', titulo: 'Nota 10!', descricao: '', meta: 1, tipo: 'perfeito', recompensa: { diamantes: 1 }, progresso: 0, concluida: false, recompensaColetada: false },
     ]));
 
     const resultados = await atualizarMissoes(31, 34, REWARD_NORMAL, false);

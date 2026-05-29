@@ -135,7 +135,7 @@ export default function GameCompletionModal({ state, onContinue }: Props) {
             <RewardRow emoji="🪙" label="moedas"   value={reward.moedas}   delay={100} />
             <RewardRow emoji="⭐" label="estrelas"  value={reward.estrelas} delay={200} />
             <RewardRow emoji="⚡" label="XP"        value={reward.xp}      delay={300} />
-            <RewardRow emoji="💎" label="ruby"      value={reward.rubis}   delay={400} highlight />
+            <RewardRow emoji="💎" label="diamantes" value={reward.diamantes} delay={400} highlight />
           </View>
 
           {/* Streak */}
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   rewardLabel: { flex: 1, fontSize: 15, fontWeight: '700', color: '#475569' },
   rewardLabelHighlight: { color: '#92400E' },
   rewardValue: { fontSize: 22, fontWeight: '900', color: '#0D3B66' },
-  rewardValueHighlight: { color: '#DC2626', fontSize: 24 },
+  rewardValueHighlight: { color: '#0EA5E9', fontSize: 24 },
 
   // ── Streak
   streakBadge: {

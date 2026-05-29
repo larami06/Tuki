@@ -7,6 +7,7 @@ import {
     SafeAreaView,
     Dimensions,
     ScrollView,
+    BackHandler,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, RefreshCw } from 'lucide-react-native';
@@ -30,6 +31,7 @@ import { playSound } from '../services/sound';
 import ConfettiEffect from '../components/ConfettiEffect';
 import { useGameCompletion } from '../hooks/useGameCompletion';
 import GameCompletionModal from '../components/GameCompletionModal';
+import ExitConfirmModal from '../components/ExitConfirmModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -67,8 +69,9 @@ export default function ContandoEstrelasScreen() {
     const [resultNumber, setResultNumber] = useState(0);
     const [isFinished, setIsFinished] = useState(false);
     const [isTransitioning, setIsTransitioning] = useState(false);
+    const [showExitModal, setShowExitModal] = useState(false);
 
-    const progressPercent = useSharedValue(0);
+    const progressPercent = useSharedValue(0); 
     const blackHolePulse = useSharedValue(1);
     const blackHoleScale = useSharedValue(1);
     const resultScale = useSharedValue(0);
@@ -76,6 +79,16 @@ export default function ContandoEstrelasScreen() {
     const exercise = EXERCISES[exerciseIndex];
     const totalStars = exercise.leftCount + exercise.rightCount;
     const collectedCount = collectedIds.size;
+
+    // ─── Back Handler ────────────────────────────────────────────────────────
+    useEffect(() => {
+        const backAction = () => {
+            setShowExitModal(true);
+            return true; // prevent default back
+        };
+        const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+        return () => backHandler.remove();
+    }, []);
 
     // ─── Pulse animation do buraco negro ─────────────────────────────────────
     useEffect(() => {
@@ -196,7 +209,7 @@ export default function ContandoEstrelasScreen() {
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity
-                    onPress={() => { playSound('click'); router.back(); }}
+                    onPress={() => { playSound('click'); setShowExitModal(true); }}
                     style={styles.backButton}
                 >
                     <ChevronLeft size={26} color="#fff" />
@@ -325,6 +338,12 @@ export default function ContandoEstrelasScreen() {
             {completionState && (
                 <GameCompletionModal state={completionState} onContinue={() => router.back()} />
             )}
+
+            <ExitConfirmModal 
+                visible={showExitModal} 
+                onCancel={() => setShowExitModal(false)} 
+                onConfirm={() => { setShowExitModal(false); router.back(); }} 
+            />
         </SafeAreaView>
     );
 }

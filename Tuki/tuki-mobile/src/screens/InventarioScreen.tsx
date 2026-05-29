@@ -111,26 +111,28 @@ export default function InventarioScreen() {
                 {avatares.map(item => {
                   const ativo = avatarAtual === item.identificador;
                   return (
-                    <View key={item.id} style={[styles.card, ativo && styles.cardAtivo]}>
+                    <View key={item.id} style={styles.cardWrapper}>
                       {ativo && (
                         <View style={styles.ativoBadge}>
-                          <CheckCircle size={16} color="#7c3aed" />
+                          <CheckCircle size={12} color="#7c3aed" />
                           <Text style={styles.ativoText}>Atual</Text>
                         </View>
                       )}
-                      <Image source={AVATARES_MAP[item.identificador]} style={styles.avatarImg} />
-                      <Text style={styles.itemNome}>{item.nome}</Text>
-                      {!ativo && (
-                        <TouchableOpacity
-                          style={[styles.equiparBtn, { backgroundColor: temaAtual }]}
-                          onPress={() => equipar(item)}
-                          disabled={equipando === item.id}
-                        >
-                          {equipando === item.id
-                            ? <ActivityIndicator size="small" color="#fff" />
-                            : <Text style={styles.equiparText}>Equipar</Text>}
-                        </TouchableOpacity>
-                      )}
+                      <View style={[styles.card, ativo && styles.cardAtivo]}>
+                        <Image source={AVATARES_MAP[item.identificador]} style={styles.avatarImg} />
+                        <Text style={styles.itemNome}>{item.nome}</Text>
+                        {!ativo && (
+                          <TouchableOpacity
+                            style={[styles.equiparBtn, { backgroundColor: temaAtual }]}
+                            onPress={() => equipar(item)}
+                            disabled={equipando === item.id}
+                          >
+                            {equipando === item.id
+                              ? <ActivityIndicator size="small" color="#fff" />
+                              : <Text style={styles.equiparText}>Equipar</Text>}
+                          </TouchableOpacity>
+                        )}
+                      </View>
                     </View>
                   );
                 })}
@@ -145,26 +147,28 @@ export default function InventarioScreen() {
                 {fundos.map(item => {
                   const ativo = temaAtual === item.identificador;
                   return (
-                    <View key={item.id} style={[styles.card, ativo && styles.cardAtivo]}>
+                    <View key={item.id} style={styles.cardWrapper}>
                       {ativo && (
                         <View style={styles.ativoBadge}>
-                          <CheckCircle size={16} color="#7c3aed" />
+                          <CheckCircle size={12} color="#7c3aed" />
                           <Text style={styles.ativoText}>Atual</Text>
                         </View>
                       )}
-                      <View style={[styles.fundoPreview, { backgroundColor: item.identificador }]} />
-                      <Text style={styles.itemNome}>{item.nome}</Text>
-                      {!ativo && (
-                        <TouchableOpacity
-                          style={[styles.equiparBtn, { backgroundColor: temaAtual }]}
-                          onPress={() => equipar(item)}
-                          disabled={equipando === item.id}
-                        >
-                          {equipando === item.id
-                            ? <ActivityIndicator size="small" color="#fff" />
-                            : <Text style={styles.equiparText}>Equipar</Text>}
-                        </TouchableOpacity>
-                      )}
+                      <View style={[styles.card, ativo && styles.cardAtivo]}>
+                        <View style={[styles.fundoPreview, { backgroundColor: item.identificador }]} />
+                        <Text style={styles.itemNome}>{item.nome}</Text>
+                        {!ativo && (
+                          <TouchableOpacity
+                            style={[styles.equiparBtn, { backgroundColor: temaAtual }]}
+                            onPress={() => equipar(item)}
+                            disabled={equipando === item.id}
+                          >
+                            {equipando === item.id
+                              ? <ActivityIndicator size="small" color="#fff" />
+                              : <Text style={styles.equiparText}>Equipar</Text>}
+                          </TouchableOpacity>
+                        )}
+                      </View>
                     </View>
                   );
                 })}
@@ -196,20 +200,28 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 20, fontWeight: '900', color: '#fff' },
   scroll: { padding: 20, paddingBottom: 40 },
-  sectionTitle: { fontSize: 20, fontWeight: '900', color: '#1f2937', marginBottom: 14 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
+  sectionTitle: { fontSize: 20, fontWeight: '900', color: '#1f2937', marginBottom: 20 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, paddingTop: 10 },
+  cardWrapper: {
+    width: '46%',
+    position: 'relative',
+  },
   card: {
-    width: '46%', backgroundColor: '#fff', borderRadius: 20,
+    width: '100%', backgroundColor: '#fff', borderRadius: 20,
     padding: 14, alignItems: 'center',
     elevation: 3, shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6,
-    position: 'relative',
   },
   cardAtivo: { borderWidth: 2, borderColor: '#7c3aed' },
   ativoBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    position: 'absolute', top: 8, right: 8,
-    backgroundColor: '#ede9fe', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    position: 'absolute', top: -10, right: 6, zIndex: 10,
+    backgroundColor: '#ede9fe',
+    paddingHorizontal: 7, paddingVertical: 3,
+    borderRadius: 10,
+    elevation: 4,
+    shadowColor: '#7c3aed',
+    shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 3,
   },
   ativoText: { fontSize: 11, fontWeight: '800', color: '#7c3aed' },
   avatarImg: { width: 72, height: 72, borderRadius: 36, marginBottom: 10 },

@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions, BackHandler } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS, withTiming, withSequence, FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { playSound } from '../services/sound';
-import { useEffect } from 'react';
 import { useGameCompletion } from '../hooks/useGameCompletion';
 import GameCompletionModal from '../components/GameCompletionModal';
+import ExitConfirmModal from '../components/ExitConfirmModal';
 
 const { width } = Dimensions.get('window');
 
@@ -23,6 +23,7 @@ export default function EncontroDosSonsScreen() {
   const { completionState, completeGame } = useGameCompletion(2);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showFusion, setShowFusion] = useState(false);
+  const [showExitModal, setShowExitModal] = useState(false);
 
   const currentChallenge = CHALLENGES[currentIndex] || { fixedLetter: '', draggableLetter: '', result: '', emoji: '', context: '' };
   const isFinished = currentIndex >= CHALLENGES.length;
@@ -32,6 +33,16 @@ export default function EncontroDosSonsScreen() {
       completeGame(CHALLENGES.length, CHALLENGES.length);
     }
   }, [isFinished]);
+
+  // ─── Back Handler ────────────────────────────────────────────────────────
+  useEffect(() => {
+    const backAction = () => {
+      setShowExitModal(true);
+      return true;
+    };
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => backHandler.remove();
+  }, []);
 
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -111,7 +122,7 @@ export default function EncontroDosSonsScreen() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => { playSound('click'); router.back(); }} style={styles.backButton}>
+          <TouchableOpacity onPress={() => { playSound('click'); setShowExitModal(true); }} style={styles.backButton}>
             <ChevronLeft size={28} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Ímã dos Sons</Text>
@@ -161,6 +172,12 @@ export default function EncontroDosSonsScreen() {
       {completionState && (
         <GameCompletionModal state={completionState} onContinue={() => router.back()} />
       )}
+      
+      <ExitConfirmModal 
+        visible={showExitModal} 
+        onCancel={() => setShowExitModal(false)} 
+        onConfirm={() => { setShowExitModal(false); router.back(); }} 
+      />
       </SafeAreaView>
     </GestureHandlerRootView>
   );

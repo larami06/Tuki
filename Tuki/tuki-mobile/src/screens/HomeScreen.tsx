@@ -1,8 +1,8 @@
-import React, { useCallback, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Image, Platform, Modal } from 'react-native';
+import React, { useCallback, useRef, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Image, Platform, Modal, Animated } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { BookOpen, Star, Sparkles, Trophy, Flame, Coins, Target, CheckCircle, Home as HomeIcon, Book, ShoppingBag, User, Bell, Play } from 'lucide-react-native';
-import { obterPerfilAtivo, salvarPerfilAtivo } from '../services/storage';
+import { obterPerfilAtivo, salvarPerfilAtivo, obterDiamantes } from '../services/storage';
 import { useAuth } from '../../app/hooks/useAuth';
 import { buscarUsuarioPorId, buscarProgressoDoUsuario } from '../services/api';
 import { playSound } from '../services/sound';
@@ -16,6 +16,7 @@ interface Usuario {
   estrelas: number;
   licoesConcluidas: number;
   streakAtual: number;
+  ultimaAtividade?: string;
   xp: number;
 }
 
@@ -69,6 +70,8 @@ export default function HomeScreen() {
   const [historiaTeaser, setHistoriaTeaser] = useState<typeof HISTORIAS_MOCK[0] | null>(null);
   const [historiaConcluidaModal, setHistoriaConcluidaModal] = useState<typeof HISTORIAS_MOCK[0] | null>(null);
   const [historiasConcluidasIds, setHistoriasConcluidasIds] = useState<number[]>([]);
+  const [diamantes, setDiamantes] = useState(0);
+  const diamanteAnim = useRef(new Animated.Value(1)).current;
   const { loading } = useAuth();
 
   // Seleciona a missão baseada no dia do mês para ser a mesma o dia todo
@@ -77,11 +80,28 @@ export default function HomeScreen() {
   const missionProgress = Math.min(usuario?.licoesConcluidas || 0, mission.total);
   const missionCompleted = missionProgress >= mission.total;
 
+  // Streak status
+  const hojeDate = new Date();
+  // Pega YYYY-MM-DD no fuso local (simplificado para bater com DateOnly do backend)
+  const hojeStr = hojeDate.getFullYear() + '-' + String(hojeDate.getMonth() + 1).padStart(2, '0') + '-' + String(hojeDate.getDate()).padStart(2, '0');
+  const streakFeitoHoje = usuario?.ultimaAtividade === hojeStr;
+
   useFocusEffect(useCallback(() => {
     const carregarPerfil = async () => {
       const perfil = await obterPerfilAtivo();
       if (perfil) {
         setUsuario(perfil);
+        // Carrega diamantes locais
+        const d = await obterDiamantes(perfil.id);
+        const dAnterior = diamantes;
+        setDiamantes(d);
+        // Anima badge se ganhou diamantes
+        if (d > dAnterior) {
+          Animated.sequence([
+            Animated.spring(diamanteAnim, { toValue: 1.35, useNativeDriver: true, speed: 30 }),
+            Animated.spring(diamanteAnim, { toValue: 1,    useNativeDriver: true, speed: 20 }),
+          ]).start();
+        }
         try {
           const [perfilAtualizado, progressos] = await Promise.all([
             buscarUsuarioPorId(perfil.id),
@@ -130,19 +150,23 @@ export default function HomeScreen() {
           </View>
           
           <View style={styles.topStats}>
-            <View style={[styles.statBadge, { backgroundColor: '#FFF7ED' }]}>
-              <Flame color="#F97316" size={18} fill="#F97316" />
-              <Text style={[styles.statText, { color: '#F97316' }]}>{usuario?.streakAtual || 0}</Text>
+            <View style={[styles.statBadge, { backgroundColor: streakFeitoHoje ? '#FFF7ED' : '#F3F4F6' }]}>
+              <Flame color={streakFeitoHoje ? '#F97316' : '#9CA3AF'} size={14} fill={streakFeitoHoje ? '#F97316' : '#9CA3AF'} />
+              <Text style={[styles.statText, { color: streakFeitoHoje ? '#F97316' : '#6B7280' }]}>{usuario?.streakAtual || 0}</Text>
             </View>
             <View style={[styles.statBadge, { backgroundColor: '#FEFCE8' }]}>
-              <Coins color="#EAB308" size={18} />
+              <Coins color="#EAB308" size={14} />
               <Text style={[styles.statText, { color: '#854D0E' }]}>{usuario?.moedas || 0}</Text>
             </View>
+            <Animated.View style={[styles.statBadge, { backgroundColor: '#EFF6FF' }, { transform: [{ scale: diamanteAnim }] }]}>
+              <Text style={styles.diamanteIcon}>💎</Text>
+              <Text style={[styles.statText, { color: '#1D4ED8' }]}>{diamantes}</Text>
+            </Animated.View>
           </View>
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content}>
         <View style={styles.banner}>
           <View style={styles.bannerHeader}>
             <Text style={styles.bannerTitle}>Hora de aprender!</Text>
@@ -189,7 +213,7 @@ export default function HomeScreen() {
         {/* Novas Histórias */}
         <View style={styles.sectionHeader}>
           <View style={styles.row}>
-            <Text style={styles.sectionTitle}>Novas Histórias</Text>
+            <Text style={styles.sectionTitle}>Histórias do Mês</Text>
             <BookOpen color="#7C3AED" size={20} />
           </View>
           <TouchableOpacity>
@@ -331,8 +355,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fdfbf7' },
   headerContainer: { 
     paddingHorizontal: 20, 
-    paddingTop: 15,
-    paddingBottom: 20,
+    paddingTop: 12,
+    paddingBottom: 14,
     backgroundColor: '#FFF',
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
@@ -396,26 +420,30 @@ const styles = StyleSheet.create({
   },
   topStats: {
     flexDirection: 'row',
-    gap: 10,
+    alignItems: 'center',
+    gap: 6,
   },
   statBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 3,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.03)',
-    elevation: 2,
+    borderColor: 'rgba(0,0,0,0.04)',
+    elevation: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 2,
   },
   statText: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '800',
+  },
+  diamanteIcon: {
+    fontSize: 13,
   },
   content: { padding: 20 },
   banner: { 

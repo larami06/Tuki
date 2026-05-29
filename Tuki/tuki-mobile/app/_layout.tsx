@@ -103,6 +103,106 @@ export default function RootLayout() {
         />
 
         <Stack.Screen
+          name="atividades"
+          options={{ title: 'Tuki - Atividades' }}
+        />
+
+        <Stack.Screen
+          name="perfil"
+          options={{ title: 'Tuki - Perfil' }}
+        />
+
+        <Stack.Screen
+          name="conquistas"
+          options={{ title: 'Tuki - Conquistas' }}
+        />
+
+        <Stack.Screen
+          name="desafio-do-dia"
+          options={{ title: 'Tuki - Desafio do Dia' }}
+        />
+
+        <Stack.Screen
+          name="historia/[id]"
+          options={{ title: 'Tuki - História' }}
+        />
+
+        <Stack.Screen
+          name="vogais-magicas"
+          options={{ title: 'Tuki - Vogais Mágicas' }}
+        />
+
+        <Stack.Screen
+          name="encontro-sons"
+          options={{ title: 'Tuki - Encontro de Sons' }}
+        />
+
+        <Stack.Screen
+          name="palavras-curtas"
+          options={{ title: 'Tuki - Palavras Curtas' }}
+        />
+
+        <Stack.Screen
+          name="frases-divertidas"
+          options={{ title: 'Tuki - Frases Divertidas' }}
+        />
+
+        <Stack.Screen
+          name="pequenos-contos"
+          options={{ title: 'Tuki - Pequenos Contos' }}
+        />
+
+        <Stack.Screen
+          name="desafio-final-alfabetizacao"
+          options={{ title: 'Tuki - Desafio Final' }}
+        />
+
+        <Stack.Screen
+          name="contando-estrelas"
+          options={{ title: 'Tuki - Contando Estrelas' }}
+        />
+
+        <Stack.Screen
+          name="soma-espacial"
+          options={{ title: 'Tuki - Soma Espacial' }}
+        />
+
+        <Stack.Screen
+          name="subtracao-lunar"
+          options={{ title: 'Tuki - Subtração Lunar' }}
+        />
+
+        <Stack.Screen
+          name="formas-geometricas"
+          options={{ title: 'Tuki - Formas Geométricas' }}
+        />
+
+        <Stack.Screen
+          name="maior-ou-menor"
+          options={{ title: 'Tuki - Maior ou Menor' }}
+        />
+
+        <Stack.Screen
+          name="logica-alienigena"
+          options={{ title: 'Tuki - Lógica Alienígena' }}
+        />
+
+        <Stack.Screen
+          name="mestre-da-galaxia"
+          options={{ title: 'Tuki - Mestre da Galáxia' }}
+        />
+
+        <Stack.Screen
+          name="historia-floresta"
+          options={{ title: 'Tuki - Aventuras na Floresta' }}
+        />
+
+        <Stack.Screen
+          name="historia-lua"
+          options={{ title: 'Tuki - O Mistério da Lua' }}
+        />
+
+        <Stack.Screen
           name="loja"
           options={{ title: 'Tuki - Loja' }}
         />

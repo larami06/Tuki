@@ -28,6 +28,7 @@ public class InventarioService : IInventarioService
             ?? throw new KeyNotFoundException($"Inventário do usuário {idUsuario} não encontrado.");
         inventario.Moedas = dto.Moedas;
         inventario.Estrelas = dto.Estrelas;
+        inventario.XP = dto.XP;
         await _repository.UpdateAsync(inventario);
     }
 

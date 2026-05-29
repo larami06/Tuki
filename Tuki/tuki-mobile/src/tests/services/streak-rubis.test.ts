@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { atualizarStreak, obterRubis, adicionarRubis } from '../../services/storage';
+import { atualizarStreak, obterDiamantes, adicionarDiamantes } from '../../services/storage';
 
 beforeEach(async () => {
   await AsyncStorage.clear();
@@ -25,7 +25,6 @@ describe('atualizarStreak', () => {
   });
 
   it('jogar no dia seguinte incrementa o streak', async () => {
-    const hoje  = new Date().toDateString();
     const ontem = new Date(Date.now() - 86_400_000).toDateString();
 
     // Simula que jogou ontem
@@ -75,37 +74,53 @@ describe('atualizarStreak', () => {
 });
 
 // ────────────────────────────────────────────────────────────────
-// RUBIS
+// DIAMANTES
 // ────────────────────────────────────────────────────────────────
-describe('obterRubis / adicionarRubis', () => {
-  it('retorna 0 quando não há rubis salvos', async () => {
-    const r = await obterRubis(1);
-    expect(r).toBe(0);
+describe('obterDiamantes / adicionarDiamantes', () => {
+  it('retorna 0 quando não há diamantes salvos', async () => {
+    const d = await obterDiamantes(1);
+    expect(d).toBe(0);
   });
 
-  it('adiciona rubis corretamente e retorna o novo total', async () => {
-    const total = await adicionarRubis(1, 2);
+  it('adiciona diamantes corretamente e retorna o novo total', async () => {
+    const total = await adicionarDiamantes(1, 2);
     expect(total).toBe(2);
   });
 
-  it('acumula rubis em múltiplas chamadas', async () => {
-    await adicionarRubis(1, 1);
-    await adicionarRubis(1, 1);
-    const total = await adicionarRubis(1, 1);
+  it('acumula diamantes em múltiplas chamadas', async () => {
+    await adicionarDiamantes(1, 1);
+    await adicionarDiamantes(1, 1);
+    const total = await adicionarDiamantes(1, 1);
     expect(total).toBe(3);
   });
 
-  it('rubis de usuários diferentes são isolados', async () => {
-    await adicionarRubis(1, 5);
-    await adicionarRubis(2, 2);
+  it('diamantes de usuários diferentes são isolados', async () => {
+    await adicionarDiamantes(1, 5);
+    await adicionarDiamantes(2, 2);
 
-    expect(await obterRubis(1)).toBe(5);
-    expect(await obterRubis(2)).toBe(2);
+    expect(await obterDiamantes(1)).toBe(5);
+    expect(await obterDiamantes(2)).toBe(2);
   });
 
-  it('ganhar 0 rubis não altera o total', async () => {
-    await adicionarRubis(1, 3);
-    const total = await adicionarRubis(1, 0);
+  it('ganhar 0 diamantes não altera o total', async () => {
+    await adicionarDiamantes(1, 3);
+    const total = await adicionarDiamantes(1, 0);
     expect(total).toBe(3);
+  });
+
+  it('migra saldo legado de @tuki_rubis para @tuki_diamantes automaticamente', async () => {
+    // Simula saldo antigo na chave de rubi
+    await AsyncStorage.setItem('@tuki_rubis_42', '7');
+
+    const d = await obterDiamantes(42);
+    expect(d).toBe(7);
+
+    // Chave antiga deve ter sido removida
+    const legado = await AsyncStorage.getItem('@tuki_rubis_42');
+    expect(legado).toBeNull();
+
+    // Chave nova deve estar salva
+    const nova = await AsyncStorage.getItem('@tuki_diamantes_42');
+    expect(nova).toBe('7');
   });
 });

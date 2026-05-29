@@ -7,7 +7,8 @@ import Svg, { Path, G, Text as SvgText, Circle } from 'react-native-svg';
 import { playSound } from '../services/sound';
 import {
   obterPerfilAtivo, salvarPerfilAtivo, salvarUltimoDesafio, verificarJogouHoje,
-  adicionarRubis, obterRubis, atualizarStreak,
+  adicionarDiamantes, obterDiamantes,
+  // NÃO importamos atualizarStreak aqui — a roleta NÃO conta para streak
 } from '../services/storage';
 import { atualizarInventario } from '../services/api';
 import { ROULETTE_SLICES, type RouletteSlice } from '../services/rewards';
@@ -34,22 +35,22 @@ function slicePath(startAngle: number, endAngle: number) {
 
 // ─── Descrição do prêmio ganho ────────────────────────────────────────────────
 function prizeDescription(slice: RouletteSlice): string {
-  if (slice.tipo === 'nada')    return 'Mais sorte amanhã! 😅';
-  if (slice.tipo === 'rubis')   return `+${slice.valor} ruby ${slice.label}`;
-  if (slice.tipo === 'estrelas') return `+${slice.valor} estrelas ⭐`;
-  if (slice.tipo === 'xp')      return `+${slice.valor} XP ⚡`;
+  if (slice.tipo === 'nada')       return 'Mais sorte amanhã! 😅';
+  if (slice.tipo === 'diamantes')  return `+${slice.valor} diamante ${slice.label}`;
+  if (slice.tipo === 'estrelas')   return `+${slice.valor} estrelas ⭐`;
+  if (slice.tipo === 'xp')         return `+${slice.valor} XP ⚡`;
   return `+${slice.valor} moedas 🪙`;
 }
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function DesafioDoDiaScreen() {
   const router = useRouter();
-  const [spinning, setSpinning]           = useState(false);
-  const [prize, setPrize]                 = useState<RouletteSlice | null>(null);
+  const [spinning, setSpinning]             = useState(false);
+  const [prize, setPrize]                   = useState<RouletteSlice | null>(null);
   const [hasPlayedToday, setHasPlayedToday] = useState(false);
-  const [moedas, setMoedas]               = useState(0);
-  const [estrelas, setEstrelas]           = useState(0);
-  const [rubis, setRubis]                 = useState(0);
+  const [moedas, setMoedas]                 = useState(0);
+  const [estrelas, setEstrelas]             = useState(0);
+  const [diamantes, setDiamantes]           = useState(0);
 
   const spinValue = useRef(new Animated.Value(0)).current;
 
@@ -59,8 +60,8 @@ export default function DesafioDoDiaScreen() {
       if (perfil) {
         setMoedas(perfil.moedas     || 0);
         setEstrelas(perfil.estrelas || 0);
-        const r = await obterRubis(perfil.id);
-        setRubis(r);
+        const d = await obterDiamantes(perfil.id);
+        setDiamantes(d);
         setHasPlayedToday(await verificarJogouHoje(perfil.id));
       }
     };
@@ -73,8 +74,11 @@ export default function DesafioDoDiaScreen() {
     setSpinning(true);
     setPrize(null);
 
-    const prizeIndex   = Math.floor(Math.random() * NUM_SLICES);
-    const totalRotation = 5 * 360 + prizeIndex * SLICE_ANGLE + SLICE_ANGLE / 2;
+    const prizeIndex    = Math.floor(Math.random() * NUM_SLICES);
+    // Para que o centro da fatia `prizeIndex` chegue ao topo (0 graus ou 360 graus),
+    // devemos rotacionar o inverso da sua posição atual.
+    const sliceCenter   = prizeIndex * SLICE_ANGLE + SLICE_ANGLE / 2;
+    const totalRotation = 5 * 360 + (360 - sliceCenter);
     spinValue.setValue(0);
 
     Animated.timing(spinValue, {
@@ -95,20 +99,20 @@ export default function DesafioDoDiaScreen() {
       let novasMoedas   = perfil.moedas   || 0;
       let novasEstrelas = perfil.estrelas || 0;
       let novoXP        = perfil.xp       || 0;
-      let novosRubis    = await obterRubis(perfil.id);
+      let novosDiamantes = await obterDiamantes(perfil.id);
 
-      if (selected.tipo === 'moedas')   { novasMoedas   += selected.valor; setMoedas(novasMoedas); }
-      if (selected.tipo === 'estrelas') { novasEstrelas += selected.valor; setEstrelas(novasEstrelas); }
-      if (selected.tipo === 'xp')       { novoXP        += selected.valor; }
-      if (selected.tipo === 'rubis')    { novosRubis = await adicionarRubis(perfil.id, selected.valor); setRubis(novosRubis); }
+      if (selected.tipo === 'moedas')    { novasMoedas    += selected.valor; setMoedas(novasMoedas); }
+      if (selected.tipo === 'estrelas')  { novasEstrelas  += selected.valor; setEstrelas(novasEstrelas); }
+      if (selected.tipo === 'xp')        { novoXP         += selected.valor; }
+      if (selected.tipo === 'diamantes') { novosDiamantes = await adicionarDiamantes(perfil.id, selected.valor); setDiamantes(novosDiamantes); }
 
+      // Registra que jogou hoje (sem atualizar streak — roleta NÃO conta)
       await salvarUltimoDesafio(perfil.id);
-      await atualizarStreak(perfil.id);
 
-      perfil.moedas   = novasMoedas;
-      perfil.estrelas = novasEstrelas;
-      perfil.xp       = novoXP;
-      perfil.rubis    = novosRubis;
+      perfil.moedas    = novasMoedas;
+      perfil.estrelas  = novasEstrelas;
+      perfil.xp        = novoXP;
+      perfil.diamantes = novosDiamantes;
       await salvarPerfilAtivo(perfil);
 
       try { await atualizarInventario(perfil.id, novasMoedas, novasEstrelas, novoXP); } catch {}
@@ -131,14 +135,14 @@ export default function DesafioDoDiaScreen() {
         <Text style={styles.headerTitle}>Roleta Diária</Text>
         <View style={styles.badgeRow}>
           <View style={styles.badge}><Text style={styles.badgeText}>🪙 {moedas}</Text></View>
-          <View style={[styles.badge, styles.badgeRuby]}><Text style={styles.badgeText}>💎 {rubis}</Text></View>
+          <View style={[styles.badge, styles.badgeDiamante]}><Text style={styles.badgeText}>💎 {diamantes}</Text></View>
         </View>
       </View>
 
       <View style={styles.content}>
         <Text style={styles.title}>Roleta Diária!</Text>
         <Text style={styles.subtitle}>
-          {hasPlayedToday && !prize ? 'Você já girou hoje 🌙' : 'Gire para ganhar moedas, estrelas, XP ou um raro ruby!'}
+          {hasPlayedToday && !prize ? 'Você já girou hoje 🌙' : 'Gire para ganhar moedas, estrelas, XP ou um raro diamante!'}
         </Text>
 
         {/* Mensagem "já jogou" */}
@@ -200,15 +204,19 @@ export default function DesafioDoDiaScreen() {
 
         {/* Resultado */}
         {prize && (
-          <View style={[styles.prizeContainer, prize.tipo === 'rubis' && styles.prizeContainerRuby, prize.tipo === 'nada' && styles.prizeContainerNada]}>
+          <View style={[
+            styles.prizeContainer,
+            prize.tipo === 'diamantes' && styles.prizeContainerDiamante,
+            prize.tipo === 'nada'      && styles.prizeContainerNada,
+          ]}>
             <Text style={styles.prizeTitle}>
-              {prize.tipo === 'nada' ? 'Quase lá! 😅' : prize.tipo === 'rubis' ? '💎 RUBY RARO!' : 'Parabéns! 🎉'}
+              {prize.tipo === 'nada' ? 'Quase lá! 😅' : prize.tipo === 'diamantes' ? '💎 DIAMANTE RARO!' : 'Parabéns! 🎉'}
             </Text>
             <Text style={styles.prizeValue}>{prizeDescription(prize)}</Text>
             <View style={styles.prizeStatsRow}>
               <Text style={styles.prizeStatItem}>🪙 {moedas}</Text>
               <Text style={styles.prizeStatItem}>⭐ {estrelas}</Text>
-              <Text style={styles.prizeStatItem}>💎 {rubis}</Text>
+              <Text style={styles.prizeStatItem}>💎 {diamantes}</Text>
             </View>
           </View>
         )}
@@ -231,8 +239,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF3C7', paddingHorizontal: 10, paddingVertical: 5,
     borderRadius: 16,
   },
-  badgeRuby:   { backgroundColor: '#FEE2E2' },
-  badgeText:   { fontSize: 13, fontWeight: '900', color: '#92400E' },
+  badgeDiamante: { backgroundColor: '#EFF6FF' },
+  badgeText:     { fontSize: 13, fontWeight: '900', color: '#92400E' },
 
   content:  { flex: 1, alignItems: 'center', paddingTop: 8, paddingHorizontal: 20 },
   title:    { fontSize: 28, fontWeight: '900', color: '#FF5A5F', marginBottom: 6 },
@@ -243,8 +251,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6', padding: 32, borderRadius: 24,
     alignItems: 'center', borderWidth: 2, borderColor: '#D1D5DB', width: '100%',
   },
-  playedEmoji:  { fontSize: 48, marginBottom: 12 },
-  playedText:   { fontSize: 20, fontWeight: '900', color: '#4B5563', marginBottom: 8 },
+  playedEmoji:   { fontSize: 48, marginBottom: 12 },
+  playedText:    { fontSize: 20, fontWeight: '900', color: '#4B5563', marginBottom: 8 },
   playedSubText: { fontSize: 14, color: '#6B7280', fontWeight: '600', textAlign: 'center' },
 
   // roleta
@@ -275,10 +283,10 @@ const styles = StyleSheet.create({
     marginTop: 16, backgroundColor: '#BAE6FD', padding: 24, borderRadius: 24,
     alignItems: 'center', borderWidth: 2, borderColor: '#38BDF8', width: '100%',
   },
-  prizeContainerRuby: { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' },
-  prizeContainerNada: { backgroundColor: '#F3F4F6', borderColor: '#D1D5DB' },
-  prizeTitle: { fontSize: 22, fontWeight: '900', color: '#0369A1', marginBottom: 8 },
-  prizeValue: { fontSize: 26, fontWeight: '900', color: '#0284C7', marginBottom: 12 },
+  prizeContainerDiamante: { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' },
+  prizeContainerNada:     { backgroundColor: '#F3F4F6', borderColor: '#D1D5DB' },
+  prizeTitle:    { fontSize: 22, fontWeight: '900', color: '#0369A1', marginBottom: 8 },
+  prizeValue:    { fontSize: 26, fontWeight: '900', color: '#0284C7', marginBottom: 12 },
   prizeStatsRow: { flexDirection: 'row', gap: 16 },
   prizeStatItem: { fontSize: 14, fontWeight: '700', color: '#374151' },
 });

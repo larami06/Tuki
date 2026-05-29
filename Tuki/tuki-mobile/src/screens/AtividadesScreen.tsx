@@ -9,7 +9,7 @@ import { playSound } from '../services/sound';
 import { obterPerfilAtivo } from '../services/storage';
 import { buscarUsuarioPorId } from '../services/api';
 import { obterMissoesHoje, type MissionProgress } from '../services/missions';
-import { obterRubis } from '../services/storage';
+import { obterDiamantes } from '../services/storage';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
 import { useCallback } from 'react';
 
@@ -26,7 +26,7 @@ export default function AtividadesScreen() {
   const router = useRouter();
   const [streakAtual, setStreakAtual] = useState(0);
   const [moedas, setMoedas]           = useState(0);
-  const [rubis, setRubis]             = useState(0);
+  const [diamantes, setDiamantes]     = useState(0);
   const [missoes, setMissoes]         = useState<MissionProgress[]>([]);
 
   const pulseScale = useSharedValue(1);
@@ -44,8 +44,8 @@ export default function AtividadesScreen() {
         if (perfil) {
           setStreakAtual(perfil.streakAtual || 0);
           setMoedas(perfil.moedas || 0);
-          const r = await obterRubis(perfil.id);
-          setRubis(r);
+          const d = await obterDiamantes(perfil.id);
+          setDiamantes(d);
           try {
             const atualizado = await buscarUsuarioPorId(perfil.id);
             setStreakAtual(atualizado.streakAtual || 0);
@@ -78,13 +78,13 @@ export default function AtividadesScreen() {
           <Text style={{ fontSize: 14 }}>🪙</Text>
           <Text style={[styles.rewardText, { color: '#854D0E' }]}>{moedas}</Text>
         </View>
-        <View style={[styles.rewardBadge, { backgroundColor: '#FEE2E2' }]}>
+        <View style={[styles.rewardBadge, { backgroundColor: '#EFF6FF' }]}>
           <Text style={{ fontSize: 14 }}>💎</Text>
-          <Text style={[styles.rewardText, { color: '#991B1B' }]}>{rubis}</Text>
+          <Text style={[styles.rewardText, { color: '#1D4ED8' }]}>{diamantes}</Text>
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         {/* Cabeçalho */}
         <View style={styles.headerContainer}>
           <View style={styles.headerTextWrapper}>
@@ -165,11 +165,11 @@ function MissionCard({ mission }: { mission: MissionProgress }) {
   const concluida = mission.concluida;
 
   // Ícone da recompensa
-  const recompIcon = mission.recompensa.rubis ? '💎'
+  const recompIcon = mission.recompensa.diamantes ? '💎'
     : mission.recompensa.moedas    ? '🪙'
     : mission.recompensa.estrelas  ? '⭐'
     : '⚡';
-  const recompVal = mission.recompensa.rubis || mission.recompensa.moedas || mission.recompensa.estrelas || mission.recompensa.xp || 0;
+  const recompVal = mission.recompensa.diamantes || mission.recompensa.moedas || mission.recompensa.estrelas || mission.recompensa.xp || 0;
 
   return (
     <View style={[styles.missionCard, concluida && styles.missionCardDone]}>

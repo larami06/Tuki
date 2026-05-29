@@ -9,17 +9,17 @@ describe('ROULETTE_SLICES', () => {
     expect(ROULETTE_SLICES).toHaveLength(8);
   });
 
-  it('deve ter exatamente 1 fatia de rubi (raro)', () => {
-    expect(ROULETTE_SLICES.filter(s => s.tipo === 'rubis')).toHaveLength(1);
+  it('deve ter exatamente 1 fatia de diamante (raro)', () => {
+    expect(ROULETTE_SLICES.filter(s => s.tipo === 'diamantes')).toHaveLength(1);
   });
 
   it('deve ter exatamente 1 fatia de "nada"', () => {
     expect(ROULETTE_SLICES.filter(s => s.tipo === 'nada')).toHaveLength(1);
   });
 
-  it('a fatia de rubi vale exatamente 1 ruby', () => {
-    const rubySlice = ROULETTE_SLICES.find(s => s.tipo === 'rubis');
-    expect(rubySlice?.valor).toBe(1);
+  it('a fatia de diamante vale exatamente 1 diamante', () => {
+    const diamanteSlice = ROULETTE_SLICES.find(s => s.tipo === 'diamantes');
+    expect(diamanteSlice?.valor).toBe(1);
   });
 
   it('todas as fatias têm color definido', () => {
@@ -53,14 +53,14 @@ describe('calcularRecompensa — balanceamento', () => {
     expect(r.perfeito).toBe(false);
   });
 
-  it('jogo perfeito em lição avançada concede rubis', () => {
+  it('jogo perfeito em lição avançada concede diamantes', () => {
     const r = calcularRecompensa(36, 4, 4); // Mestre da Galáxia
-    expect(r.rubis).toBe(2);
+    expect(r.diamantes).toBe(2);
   });
 
-  it('jogo perfeito em lição básica NÃO concede rubis', () => {
+  it('jogo perfeito em lição básica NÃO concede diamantes', () => {
     const r = calcularRecompensa(1, 5, 5); // Vogais Mágicas (sem perfeito config)
-    expect(r.rubis).toBe(0);
+    expect(r.diamantes).toBe(0);
   });
 
   it('ratio mínimo de 0.4 garante recompensa mesmo com muitos erros', () => {
@@ -82,14 +82,14 @@ describe('calcularRecompensa — balanceamento', () => {
     expect(r.xp).toBeGreaterThan(0);
   });
 
-  it('lição com rubi perfeito (idLicao=7) dá 1 ruby ao completar sem erros', () => {
+  it('lição com diamante perfeito (idLicao=7) dá 1 diamante ao completar sem erros', () => {
     const r = calcularRecompensa(7, 1, 1);
-    expect(r.rubis).toBe(1);
+    expect(r.diamantes).toBe(1);
   });
 
-  it('lição com rubi (idLicao=35) não dá rubi se houve erros', () => {
+  it('lição com diamante (idLicao=35) não dá diamante se houve erros', () => {
     const r = calcularRecompensa(35, 4, 5); // 80% — não é perfeito
-    expect(r.rubis).toBe(0);
+    expect(r.diamantes).toBe(0);
   });
 
   it('todas as lições 1-7, 20-26, 30-36 retornam valores positivos', () => {

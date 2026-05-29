@@ -6,6 +6,7 @@ import {
     TouchableOpacity,
     SafeAreaView,
     Dimensions,
+    BackHandler,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
@@ -27,6 +28,7 @@ import * as Haptics from 'expo-haptics';
 import { playSound } from '../services/sound';
 import { useGameCompletion } from '../hooks/useGameCompletion';
 import GameCompletionModal from '../components/GameCompletionModal';
+import ExitConfirmModal from '../components/ExitConfirmModal';
 
 // ─── Formas disponíveis ───────────────────────────────────────────────────────
 type ShapeKey = 'Círculo' | 'Triângulo' | 'Quadrado' | 'Estrela' | 'Hexágono';
@@ -96,6 +98,7 @@ export default function FormasGeometricasScreen() {
     const [sorted, setSorted] = useState<Record<string, 'left' | 'right' | 'wrong'>>({});
     const [isFinished, setIsFinished] = useState(false);
     const [isTransitioning, setIsTransitioning] = useState(false);
+    const [showExitModal, setShowExitModal] = useState(false);
 
     const challenge = CHALLENGES[currentIndex];
     const totalItems = challenge.items.length;
@@ -120,11 +123,20 @@ export default function FormasGeometricasScreen() {
         }
     }, [correctlySorted, totalItems]);
 
-    // Salva progresso
     useEffect(() => {
         if (!isFinished) return;
         completeGame(CHALLENGES.length, CHALLENGES.length);
     }, [isFinished]);
+
+    // ─── Back Handler ────────────────────────────────────────────────────────
+    useEffect(() => {
+        const backAction = () => {
+            setShowExitModal(true);
+            return true;
+        };
+        const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+        return () => backHandler.remove();
+    }, []);
 
     const handleSort = useCallback((itemId: string, shape: ShapeKey, bucket: 'left' | 'right') => {
         const expected = bucket === 'left' ? challenge.bucketLeft : challenge.bucketRight;
@@ -154,7 +166,7 @@ export default function FormasGeometricasScreen() {
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity
-                    onPress={() => { playSound('click'); router.back(); }}
+                    onPress={() => { playSound('click'); setShowExitModal(true); }}
                     style={styles.backButton}
                 >
                     <ChevronLeft size={26} color="#fff" />
@@ -217,6 +229,12 @@ export default function FormasGeometricasScreen() {
             {completionState && (
                 <GameCompletionModal state={completionState} onContinue={() => router.back()} />
             )}
+
+            <ExitConfirmModal 
+                visible={showExitModal} 
+                onCancel={() => setShowExitModal(false)} 
+                onConfirm={() => { setShowExitModal(false); router.back(); }} 
+            />
         </SafeAreaView>
     );
 }

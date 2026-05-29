@@ -25,6 +25,7 @@ export interface UsuarioResponseDto {
   estrelas: number;
   licoesConcluidas: number;
   streakAtual: number;
+  ultimaAtividade?: string;
   xp: number;
 }
 

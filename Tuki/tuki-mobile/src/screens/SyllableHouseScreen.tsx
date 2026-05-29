@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions, Modal, BackHandler } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, Info, HelpCircle, Star, Sparkles } from 'lucide-react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -21,6 +21,7 @@ import { playSound } from '../services/sound';
 import ConfettiEffect from '../components/ConfettiEffect';
 import { useGameCompletion } from '../hooks/useGameCompletion';
 import GameCompletionModal from '../components/GameCompletionModal';
+import ExitConfirmModal from '../components/ExitConfirmModal';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -82,6 +83,7 @@ export default function SyllableHouseScreen() {
 
   // Level completion
   const [isFinished, setIsFinished] = useState(false);
+  const [showExitModal, setShowExitModal] = useState(false);
 
   // Shared values for house animation
   const houseShakeX = useSharedValue(0);
@@ -103,6 +105,16 @@ export default function SyllableHouseScreen() {
       completeGame(score, 10);
     }
   }, [isFinished]);
+
+  // ─── Back Handler ────────────────────────────────────────────────────────
+  useEffect(() => {
+    const backAction = () => {
+      setShowExitModal(true);
+      return true;
+    };
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => backHandler.remove();
+  }, []);
 
   // House Animated Style
   const houseAnimatedStyle = useAnimatedStyle(() => {
@@ -219,7 +231,7 @@ export default function SyllableHouseScreen() {
 
         {/* Header */}
         <View style={[styles.header, { backgroundColor: currentLetter === 'B' ? '#45b7d1' : '#a855f7' }]}>
-          <TouchableOpacity onPress={() => { playSound('click'); router.back(); }} style={styles.backButton}>
+          <TouchableOpacity onPress={() => { playSound('click'); setShowExitModal(true); }} style={styles.backButton}>
             <ChevronLeft size={28} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Casa das Sílabas</Text>
@@ -336,6 +348,12 @@ export default function SyllableHouseScreen() {
       {completionState && (
         <GameCompletionModal state={completionState} onContinue={() => router.back()} />
       )}
+      
+      <ExitConfirmModal 
+        visible={showExitModal} 
+        onCancel={() => setShowExitModal(false)} 
+        onConfirm={() => { setShowExitModal(false); router.back(); }} 
+      />
       </SafeAreaView>
     </GestureHandlerRootView>
   );

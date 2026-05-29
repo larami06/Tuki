@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions, ScrollView, BackHandler } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, withSequence, Easing, FadeIn, ZoomIn, FadeInDown } from 'react-native-reanimated';
@@ -7,6 +7,7 @@ import * as Haptics from 'expo-haptics';
 import { playSound } from '../services/sound';
 import { useGameCompletion } from '../hooks/useGameCompletion';
 import GameCompletionModal from '../components/GameCompletionModal';
+import ExitConfirmModal from '../components/ExitConfirmModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -38,6 +39,7 @@ export default function PequenosContosScreen() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
   const [outcome, setOutcome] = useState<string | null>(null);
+  const [showExitModal, setShowExitModal] = useState(false);
 
   const story = STORIES[currentIndex];
 
@@ -46,6 +48,16 @@ export default function PequenosContosScreen() {
       completeGame(STORIES.length, STORIES.length);
     }
   }, [isFinished]);
+
+  // ─── Back Handler ────────────────────────────────────────────────────────
+  useEffect(() => {
+    const backAction = () => {
+      setShowExitModal(true);
+      return true;
+    };
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => backHandler.remove();
+  }, []);
 
   const handleSelect = (option: any) => {
     playSound('correct');
@@ -66,7 +78,7 @@ export default function PequenosContosScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => { playSound('click'); router.back(); }} style={styles.backButton}>
+        <TouchableOpacity onPress={() => { playSound('click'); setShowExitModal(true); }} style={styles.backButton}>
           <ChevronLeft size={28} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Pequenos Contos</Text>
@@ -109,6 +121,12 @@ export default function PequenosContosScreen() {
       {completionState && (
         <GameCompletionModal state={completionState} onContinue={() => router.back()} />
       )}
+      
+      <ExitConfirmModal 
+        visible={showExitModal} 
+        onCancel={() => setShowExitModal(false)} 
+        onConfirm={() => { setShowExitModal(false); router.back(); }} 
+      />
     </SafeAreaView>
   );
 }

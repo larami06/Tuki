@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Dimensions,
+  BackHandler,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, ShieldCheck } from 'lucide-react-native';
@@ -23,6 +24,7 @@ import * as Haptics from 'expo-haptics';
 import { playSound } from '../services/sound';
 import { useGameCompletion } from '../hooks/useGameCompletion';
 import GameCompletionModal from '../components/GameCompletionModal';
+import ExitConfirmModal from '../components/ExitConfirmModal';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -149,6 +151,7 @@ export default function MestreDaGalaxiaScreen() {
   const [missionComplete, setMissionComplete] = useState(false);
   const [baseHp, setBaseHp] = useState(3);
   const [cometHit, setCometHit] = useState(false); // animação de impacto
+  const [showExitModal, setShowExitModal] = useState(false);
 
   const spawnRef = useRef(0);
   const circleCountRef = useRef(0); // rastreia quantos estão na tela
@@ -168,6 +171,16 @@ export default function MestreDaGalaxiaScreen() {
 
   // Cleanup ao desmontar
   useEffect(() => () => stopTimers(), []);
+
+  // ─── Back Handler ────────────────────────────────────────────────────────
+  useEffect(() => {
+    const backAction = () => {
+      setShowExitModal(true);
+      return true;
+    };
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => backHandler.remove();
+  }, []);
 
   // ─── Inicia missão ────────────────────────────────────────────────────────
   const startMission = useCallback((idx: number) => {
@@ -326,7 +339,7 @@ export default function MestreDaGalaxiaScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => { playSound('click'); router.back(); }} style={styles.backButton}>
+        <TouchableOpacity onPress={() => { playSound('click'); setShowExitModal(true); }} style={styles.backButton}>
           <ChevronLeft size={26} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Mestre da Galáxia</Text>
@@ -406,6 +419,12 @@ export default function MestreDaGalaxiaScreen() {
       {completionState && (
         <GameCompletionModal state={completionState} onContinue={() => router.back()} />
       )}
+
+      <ExitConfirmModal 
+        visible={showExitModal} 
+        onCancel={() => setShowExitModal(false)} 
+        onConfirm={() => { setShowExitModal(false); router.back(); }} 
+      />
     </SafeAreaView>
   );
 }

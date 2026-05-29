@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Dimensions,
+  BackHandler,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, Sparkles, Star } from 'lucide-react-native';
@@ -29,6 +30,7 @@ import { playSound } from '../services/sound';
 import ConfettiEffect from '../components/ConfettiEffect';
 import { useGameCompletion } from '../hooks/useGameCompletion';
 import GameCompletionModal from '../components/GameCompletionModal';
+import ExitConfirmModal from '../components/ExitConfirmModal';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -101,6 +103,7 @@ export default function ShortWordsScreen() {
   const [isFinished, setIsFinished] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [showWordComplete, setShowWordComplete] = useState(false);
+  const [showExitModal, setShowExitModal] = useState(false);
 
   const challenge = WORD_CHALLENGES[challengeIndex];
   const totalChallenges = WORD_CHALLENGES.length;
@@ -186,6 +189,16 @@ export default function ShortWordsScreen() {
     }
   }, [isFinished]);
 
+  // ─── Back Handler ────────────────────────────────────────────────────────
+  useEffect(() => {
+    const backAction = () => {
+      setShowExitModal(true);
+      return true;
+    };
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => backHandler.remove();
+  }, []);
+
   // Progress bar animated style
   const progressAnimatedStyle = useAnimatedStyle(() => ({
     width: `${progressPercent.value * 100}%`,
@@ -228,7 +241,7 @@ export default function ShortWordsScreen() {
           <TouchableOpacity
             onPress={() => {
               playSound('click');
-              router.back();
+              setShowExitModal(true);
             }}
             style={styles.backBtn}
           >
@@ -327,6 +340,12 @@ export default function ShortWordsScreen() {
       {completionState && (
         <GameCompletionModal state={completionState} onContinue={() => router.back()} />
       )}
+      
+      <ExitConfirmModal 
+        visible={showExitModal} 
+        onCancel={() => setShowExitModal(false)} 
+        onConfirm={() => { setShowExitModal(false); router.back(); }} 
+      />
       </SafeAreaView>
     </GestureHandlerRootView>
   );
