@@ -201,7 +201,7 @@ export default function SyllableHouseScreen() {
     if (showCelebration && lastSyllable) {
       const data = SYLLABLE_DATA[lastSyllable];
       if (currentLetter === 'C' && (lastSyllable === 'CE' || lastSyllable === 'CI')) {
-        return `⚠️ O C mudou de som! ${currentLetter} + ${lastSyllable.slice(1)} faz ${lastSyllable} com som de /s/! Que nem na palavra ${data.word}! ${data.resident}`;
+        return `✅ Boa! Mas atenção: ${lastSyllable} tem som de /s/! Que nem na palavra ${data.word}! ${data.resident}`;
       }
       return `🎉 Excelente! ${currentLetter} + ${lastSyllable.slice(1)} faz ${lastSyllable}! De ${data.word}! ${data.resident}`;
     }
@@ -339,6 +339,7 @@ export default function SyllableHouseScreen() {
                   index={index}
                   isCompleted={isCompleted}
                   isActive={isActive}
+                  isLocked={showCelebration}
                   onDropSuccess={handleDropSuccess}
                 />
               );
@@ -365,10 +366,11 @@ interface VowelBubbleProps {
   index: number;
   isCompleted: boolean;
   isActive: boolean;
+  isLocked: boolean;
   onDropSuccess: (vowel: string) => void;
 }
 
-function VowelBubble({ vowel, index, isCompleted, isActive, onDropSuccess }: VowelBubbleProps) {
+function VowelBubble({ vowel, index, isCompleted, isActive, isLocked, onDropSuccess }: VowelBubbleProps) {
   const color = VOWEL_COLORS[vowel];
 
   // Base physics starting positions
@@ -409,17 +411,23 @@ function VowelBubble({ vowel, index, isCompleted, isActive, onDropSuccess }: Vow
 
   const dragGesture = Gesture.Pan()
     .onStart(() => {
-      if (isCompleted || isActive) return;
+      if (isCompleted || isActive || isLocked) return;
       scale.value = withSpring(1.25);
       runOnJS(playSound)('click');
     })
     .onUpdate((event) => {
-      if (isCompleted || isActive) return;
+      if (isCompleted || isActive || isLocked) return;
       translateX.value = event.translationX;
       translateY.value = event.translationY;
     })
     .onEnd((event) => {
       if (isCompleted || isActive) return;
+      if (isLocked) {
+        translateX.value = withSpring(0);
+        translateY.value = withSpring(0);
+        scale.value = withSpring(1);
+        return;
+      }
 
       // Absolute touch check
       const currentCenterX = startX + VOWEL_SIZE / 2 + event.translationX;
@@ -478,7 +486,8 @@ function VowelBubble({ vowel, index, isCompleted, isActive, onDropSuccess }: Vow
   );
 }
 
-const VOWEL_SIZE = 60;
+const MIN_VOWEL_GAP = 14;
+const VOWEL_SIZE = Math.floor(Math.min(60, (SCREEN_WIDTH - 6 * MIN_VOWEL_GAP) / 5));
 
 // Utility function to darken bubble border color slightly
 function shadeColor(color: string, percent: number) {
@@ -653,8 +662,8 @@ const styles = StyleSheet.create({
     borderStyle: 'solid',
   },
   houseWindowWarning: {
-    backgroundColor: '#fee2e2',
-    borderColor: '#ef4444',
+    backgroundColor: '#fef3c7',
+    borderColor: '#f59e0b',
     borderStyle: 'solid',
   },
   windowHintContainer: {
@@ -755,7 +764,9 @@ const styles = StyleSheet.create({
   },
   syllableLogList: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
   },
   syllableLogItem: {
     width: 50,
